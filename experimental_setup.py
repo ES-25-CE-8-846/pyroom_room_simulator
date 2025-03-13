@@ -9,7 +9,7 @@ from speaker_array import SpeakerArray
 from room_generator import RoomGenerator
 
 # specify signal source
-fs, signal = wavfile.read("relaxing-guitar-loop-v5-245859.wav")
+fs, signal = wavfile.read("wav_files/relaxing-guitar-loop-v5-245859.wav")
 if signal.ndim > 1:
     signal = np.mean(signal, axis=1)  # Average channels to convert to mono
 
