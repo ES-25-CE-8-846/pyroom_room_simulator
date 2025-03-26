@@ -6,12 +6,12 @@ class MicrophoneArray:
         Initialize a 2D microphone array (grid).
 
         Parameters:
-        rows (int): Number of rows in the microphone array.
-        cols (int): Number of columns in the microphone array.
-        start_position (list or np.array): Position of the first microphone [x, y, z].
-        distance (float): Distance between adjacent microphones.
-        x_orientation (list or np.array, optional): Orientation along the x-axis (default: [1,0,0]).
-        y_orientation (list or np.array, optional): Orientation along the y-axis (default: [0,1,0]).
+            rows (int): Number of rows in the microphone array.
+            cols (int): Number of columns in the microphone array.
+            start_position (list or np.array): Position of the first microphone [x, y, z].
+            distance (float): Distance between adjacent microphones.
+            x_orientation (list or np.array, optional): Orientation along the x-axis (default: [1,0,0]).
+            y_orientation (list or np.array, optional): Orientation along the y-axis (default: [0,1,0]).
         """
         self.rows = rows
         self.cols = cols
