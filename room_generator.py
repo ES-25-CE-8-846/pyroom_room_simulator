@@ -28,7 +28,11 @@ class RoomGenerator:
         if self.corners is None:
             width = np.random.uniform(3.0, 30.0)
             length = np.random.uniform(3.0, 30.0) 
-            self.corners = np.array([[0, 0], [0, width], [length, width], [length, 0]])
+        else:
+            width = np.max(self.corners[1, :]) - np.min(self.corners[1, :])
+            length = np.max(self.corners[0, :]) - np.min(self.corners[0, :])
+            
+        self.corners = np.array([[0, 0], [0, width], [length, width], [length, 0]])
 
         if self.material_properties is None:
             self.material_properties = {
