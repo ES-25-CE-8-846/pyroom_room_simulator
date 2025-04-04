@@ -3,16 +3,17 @@ import pyroomacoustics as pra
 import matplotlib.pyplot as plt
 
 class RoomGenerator:
-    def __init__(self, corners=None, material_properties=None, fs=48000, ray_tracing_params=None, extrude_height=None):
+    def __init__(self, corners=None, material_properties=None, fs=16000, ray_tracing_params=None, extrude_height=None):
         """
         Initialize the RoomGenerator.
 
         Parameters:
-            corners (np.array): Array of room corners [x, y].
-            material_properties (dict): Dictionary with 'energy_absorption' and 'scattering'.
-            fs (int): Sampling frequency.
-            ray_tracing_params (dict): Dictionary with 'receiver_radius', 'n_rays', and 'energy_thres'.
-            extrude_height (float): Height to extrude the room.
+        corners (np.array): Array of room corners [x, y].
+        material_properties (dict): Dictionary with 'energy_absorption' and 'scattering'.
+        fs (int): Sampling frequency.
+        ray_tracing_params (dict): Dictionary with 'receiver_radius', 'n_rays', and 'energy_thres'.
+        extrude_height (float): Height to extrude the room.
+        max_corners (int): Maximum number of corners for the room.
         """
         self.corners = corners
         self.material_properties = material_properties
@@ -22,11 +23,11 @@ class RoomGenerator:
 
     def generate_room(self):
         """
-        Generate the room with the specified properties. If ´corners´ is not set, a room with random width and length is generated.
+        Generate the room with the specified properties.
         """
         if self.corners is None:
-            width = np.random.uniform(3.0, 30.0)
-            length = np.random.uniform(3.0, 30.0) 
+            width = np.random.uniform(3.0, 10.0)
+            length = np.random.uniform(3.0, 10.0) 
         else:
             width = np.max(self.corners[1, :]) - np.min(self.corners[1, :])
             length = np.max(self.corners[0, :]) - np.min(self.corners[0, :])
@@ -45,38 +46,42 @@ class RoomGenerator:
                 'energy_thres': 1e-5
             }
         if self.extrude_height is None:
-            self.extrude_height = np.random.uniform(min(2.0, width, length), max(width, length)) #Ensure that the room is at least 2m high unless width or length are lower
+            self.extrude_height = np.random.uniform(min(2.0, width, length), min(width, length)) #Ensure that the room is at least 2m high unless width or length are lower
 
         material = pra.Material(energy_absorption=self.material_properties['energy_absorption'],
                                 scattering=self.material_properties['scattering'])
-        
-        # Create the room object
         room = pra.Room.from_corners(self.corners.T, materials=material, fs=self.fs, ray_tracing=True, air_absorption=True)
         room.extrude(self.extrude_height)
         room.set_ray_tracing(receiver_radius=self.ray_tracing_params['receiver_radius'],
                              n_rays=self.ray_tracing_params['n_rays'],
                              energy_thres=self.ray_tracing_params['energy_thres'])
-
+        dimensions = {
+            'width': width,
+            'length': length,
+            'height': self.extrude_height
+        }
         # Reset attributes to None
         self.corners = None
         self.material_properties = None
         self.ray_tracing_params = None
         self.extrude_height = None
 
-        return room
+        return room , dimensions
     
 if __name__ == "__main__":
     room_generator = RoomGenerator()
-    room1 = room_generator.generate_room()
+    room1, room1_dimensions = room_generator.generate_room()
+    print(room1_dimensions['width'], room1_dimensions['length'], room1_dimensions['height'])
     fig, ax = room1.plot()
-    ax.set_xlim([0, 30])
-    ax.set_ylim([0, 30])
-    ax.set_zlim([0, 30])
+    ax.set_xlim([0, 10])
+    ax.set_ylim([0, 10])
+    ax.set_zlim([0, 10])
     plt.show()
     
-    room2 = room_generator.generate_room()
+    room2, room2_dimensions = room_generator.generate_room()
+    print(room2_dimensions['width'], room2_dimensions['length'], room2_dimensions['height'])
     fig, ax = room2.plot()
-    ax.set_xlim([0, 30])
-    ax.set_ylim([0, 30])
-    ax.set_zlim([0, 30])
+    ax.set_xlim([0, 10])
+    ax.set_ylim([0, 10])
+    ax.set_zlim([0, 10])
     plt.show()
