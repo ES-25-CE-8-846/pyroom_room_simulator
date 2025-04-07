@@ -21,7 +21,7 @@ class PhoneSpeaker:
         self.orientation = np.radians(orientation)  # Convert to radians
         
         # Define phone dimensions (height, width, depth)
-        self.phone_dimensions = np.array([161, 76, 9])  # mm
+        self.phone_dimensions = np.array([161, 76, 9])*0.001  # mm
         self.phone_center = self.phone_dimensions / 2   # mm
         
         # Compute rotation matrix

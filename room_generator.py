@@ -3,17 +3,16 @@ import pyroomacoustics as pra
 import matplotlib.pyplot as plt
 
 class RoomGenerator:
-    def __init__(self, corners=None, material_properties=None, fs=16000, ray_tracing_params=None, extrude_height=None):
+    def __init__(self, corners=None, material_properties=None, fs=48000, ray_tracing_params=None, extrude_height=None):
         """
         Initialize the RoomGenerator.
 
         Parameters:
-        corners (np.array): Array of room corners [x, y].
-        material_properties (dict): Dictionary with 'energy_absorption' and 'scattering'.
-        fs (int): Sampling frequency.
-        ray_tracing_params (dict): Dictionary with 'receiver_radius', 'n_rays', and 'energy_thres'.
-        extrude_height (float): Height to extrude the room.
-        max_corners (int): Maximum number of corners for the room.
+            corners (np.array): Array of room corners [x, y].
+            material_properties (dict): Dictionary with 'energy_absorption' and 'scattering'.
+            fs (int): Sampling frequency.
+            ray_tracing_params (dict): Dictionary with 'receiver_radius', 'n_rays', and 'energy_thres'.
+            extrude_height (float): Height to extrude the room.
         """
         self.corners = corners
         self.material_properties = material_properties
@@ -23,7 +22,7 @@ class RoomGenerator:
 
     def generate_room(self):
         """
-        Generate the room with the specified properties.
+        Generate the room with the specified properties. If ´corners´ is not set, a room with random width and length is generated.
         """
         if self.corners is None:
             width = np.random.uniform(3.0, 10.0)
