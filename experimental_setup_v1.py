@@ -4,9 +4,9 @@ from scipy.io import wavfile
 from scipy.signal import fftconvolve
 import IPython
 import pyroomacoustics as pra
-from microphone_array import MicrophoneArray
-from speaker_array import SpeakerArray
-from room_generator import RoomGenerator
+from tools import MicrophoneArray
+from tools import SpeakerArray
+from tools import RoomGenerator
 
 # specify signal source
 fs, signal = wavfile.read("wav_files/relaxing-guitar-loop-v5-245859.wav")
@@ -21,7 +21,7 @@ ray_tracing_params = {'receiver_radius': 0.5, 'n_rays': 10000, 'energy_thres': 1
 
 # Generate the room
 room_generator = RoomGenerator(corners, material_properties, fs, ray_tracing_params)
-room = room_generator.generate_room()
+room, _ = room_generator.generate_room()
 
 # Define the speaker array
 n_speakers = 8

@@ -1,8 +1,8 @@
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-class PhoneSpeaker:
-    def __init__(self, position: list | np.ndarray = [0,0,0], orientation: list | np.ndarray = [0,0,0]):
+class Phone:
+    def __init__(self, position: list | np.ndarray = [0,0,0], orientation: list | np.ndarray = [0,0,0], unit: str = "mm"):
         """
         Initialize a phone speaker system.
         
@@ -12,6 +12,10 @@ class PhoneSpeaker:
                                                    
             orientation (list or np.array, optional): Euler angles (roll, pitch, yaw) in degrees.
                                                       Default is [0, 0, 0] (no rotation).
+            
+            unit (str, optional): The measuring unit used for the phone.
+                                  Default is "mm".
+                                  The allowed units are "mm", "cm" and "m".
         """
         
         # Set position
@@ -20,9 +24,13 @@ class PhoneSpeaker:
         # Set orientation (Euler angles in degrees)
         self.orientation = np.radians(orientation)  # Convert to radians
         
+        # Define unit dict
+        unit_dict = {"mm": 1, "cm": 0.1, "m": 0.001}
+        self.unit = unit
+        
         # Define phone dimensions (height, width, depth)
-        self.phone_dimensions = np.array([161, 76, 9])*0.001  # mm
-        self.phone_center = self.phone_dimensions / 2   # mm
+        self.phone_dimensions = np.array([161, 76, 9])*unit_dict[unit]
+        self.phone_center = self.phone_dimensions / 2
         
         # Compute rotation matrix
         self.rotation_matrix = Rotation.from_euler('xyz', self.orientation).as_matrix()  # 3x3 matrix
@@ -175,9 +183,9 @@ class PhoneSpeaker:
             ax.set_ylim([-ax_lim, ax_lim] + y)
             ax.set_zlim([-ax_lim, ax_lim] + z)
             
-            ax.set_xlabel("X (mm)")
-            ax.set_ylabel("Y (mm)")
-            ax.set_zlabel("Z (mm)")
+            ax.set_xlabel(f"X ({self.unit})")
+            ax.set_ylabel(f"Y ({self.unit})")
+            ax.set_zlabel(f"Z ({self.unit})")
             
             ax.set_title("3D Phone Model")
             ax.legend()
@@ -195,7 +203,7 @@ class PhoneSpeaker:
 
 if __name__ == "__main__":
     # phone = PhoneSpeaker(np.array([0,0,0]))
-    phone = PhoneSpeaker(np.array([20, 30, 40]), np.array([45,-90,0])) # pos in mm, orientation in degrees (roll, pitch, yaw)
+    phone = Phone(np.array([20, 30, 40]), np.array([45,-90,0])) # pos in mm, orientation in degrees (roll, pitch, yaw)
     
     print(phone.get_phone_info())
     phone.plot_phone(plot=True)

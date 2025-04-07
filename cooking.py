@@ -3,10 +3,10 @@ import random
 import matplotlib.pyplot as plt
 from scipy.io import wavfile
 import pyroomacoustics as pra
-from microphone_array import MicrophoneArray
-from microphone_circle import MicrophoneCircle
-from speaker_array import SpeakerArray
-from room_generator import RoomGenerator
+from tools import MicrophoneArray
+from tools import MicrophoneCircle
+from tools import SpeakerArray
+from tools import RoomGenerator
 
 
 # specify signal source
