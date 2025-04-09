@@ -20,13 +20,19 @@ class RoomGenerator:
         self.ray_tracing_params = ray_tracing_params
         self.extrude_height = extrude_height
 
-    def generate_room(self):
+    def generate_room(self, seed=None):
         """
         Generate the room with the specified properties. If ´corners´ is not set, a room with random width and length is generated.
         """
+        
+        # set randomness generator seed
+        random_gen = np.random.default_rng(seed=seed)
+        
         if self.corners is None:
-            width = np.random.uniform(3.0, 10.0)
-            length = np.random.uniform(3.0, 10.0) 
+            # width = np.random.uniform(3.0, 10.0)
+            # length = np.random.uniform(3.0, 10.0) 
+            width = random_gen.uniform(3.0, 10.0)
+            length = random_gen.uniform(3.0, 10.0) 
         else:
             width = np.max(self.corners[1, :]) - np.min(self.corners[1, :])
             length = np.max(self.corners[0, :]) - np.min(self.corners[0, :])
@@ -35,8 +41,10 @@ class RoomGenerator:
 
         if self.material_properties is None:
             self.material_properties = {
-                'energy_absorption': np.random.uniform(0.1, 0.9),
-                'scattering': np.random.uniform(0.1, 0.9)
+                # 'energy_absorption': np.random.uniform(0.1, 0.9),
+                # 'scattering': np.random.uniform(0.1, 0.9)
+                'energy_absorption': random_gen.uniform(0.1, 0.9),
+                'scattering': random_gen.uniform(0.1, 0.9)
             }
         if self.ray_tracing_params is None:
             self.ray_tracing_params = {
@@ -45,7 +53,8 @@ class RoomGenerator:
                 'energy_thres': 1e-5
             }
         if self.extrude_height is None:
-            self.extrude_height = np.random.uniform(min(2.0, width, length), min(width, length)) #Ensure that the room is at least 2m high unless width or length are lower
+            # self.extrude_height = np.random.uniform(min(2.0, width, length), min(width, length)) #Ensure that the room is at least 2m high unless width or length are lower
+            self.extrude_height = random_gen.uniform(min(2.0, width, length), min(width, length))
 
         material = pra.Material(energy_absorption=self.material_properties['energy_absorption'],
                                 scattering=self.material_properties['scattering'])
