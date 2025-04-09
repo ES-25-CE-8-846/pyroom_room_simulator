@@ -3,15 +3,6 @@ import pathlib as path
 import argparse
 
 
-<<<<<<< HEAD
-
-
-
-
-
-
-=======
->>>>>>> b8c1f48 (Initial draft for dataset merge script)
 if __name__ == "__main__":
     # Parse the command line arguments
     parser = argparse.ArgumentParser(description="Create symbolic links to datasets.")
