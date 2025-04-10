@@ -37,7 +37,7 @@ class RoomGenerator:
         corners = np.array([[0, 0], [0, width], [length, width], [length, 0]])
         
         if self.extrude_height is None:
-            extrude_height = np_random_generator.uniform(min(min_extrude, width, length), min(width, length)) #Ensure that the room is at least 2m high unless width or length are lower
+            extrude_height = np_random_generator.uniform(max(min_extrude, min(width, length)), min(width, length)) # Ensure that the room is at least 2m high
             return corners, extrude_height
         
         return corners, self.extrude_height
