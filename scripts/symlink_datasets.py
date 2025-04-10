@@ -44,6 +44,6 @@ if __name__ == "__main__":
 
         
         # Create a symbolic link in the merged dataset directory
-        symlink_path = merged_dataset_path / f'{i}_{dataset_parts[-2]}_{dataset_parts[-1]}' # <--- Change this once we know the namning convention
+        symlink_path = merged_dataset_path / f'{i}_{dataset_parts[-2]}_{dataset_parts[-1]}' # <--- Change this once we know the naming convention
         symlink_path.symlink_to(dataset_path, target_is_directory=True)
         print(f"Created symbolic link: {symlink_path} -> {dataset_path}")
