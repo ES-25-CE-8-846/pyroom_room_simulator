@@ -166,7 +166,7 @@ def main():
             "n_mics": 12,
             "mic_radius": 0.5,
             "corners": None,
-            "shape": "shoebox", # "shoebox", "lroom", "troom" <- shape is only used for naming if corners are set
+            "shape": "shoebox", # "shoebox", "l_room", "t_room" <- shape is only used for naming if corners are set
             "signal": signal,
             # TODO: Implement shape settings or something similar for the random generation of corners
         },
