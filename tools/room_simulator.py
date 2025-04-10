@@ -1,8 +1,8 @@
 import numpy as np
 import pyroomacoustics as pra
-from room_generator import RoomGenerator
-from microphone_circle import MicrophoneCircle
-from phone import Phone
+from tools import RoomGenerator
+from tools import MicrophoneCircle
+from tools import Phone
 import matplotlib.pyplot as plt
 import logging
 logger = logging.getLogger(__name__)
@@ -11,32 +11,18 @@ logger = logging.getLogger(__name__)
 class RoomSimulator():
     def __init__(
             self,
-            material_properties: dict | None = None,
-            ray_tracing_params: dict | None = None,
-            extrude_height: float | None = None,
             seed: int = None,
         ):
         """Simulate room :)
 
         Args:
-            material_properties (dict | None, optional): _description_. Defaults to None.
-            ray_tracing_params (dict | None, optional): _description_. Defaults to None.
-            extrude_height (float | None, optional): _description_. Defaults to None.
+            seed (int, optional): The random seed used. Defaults to None.
         """
         
         # Define room properties
         self.signal = None
         self.room_params = None
         self.random_gen = np.random.default_rng(seed=seed)
-        
-        if extrude_height is None: self.extrude_height = self.random_gen.uniform(2.0, 3.0)
-        else: self.extrude_height = extrude_height
-        
-        if material_properties is None: self.material_properties = {'energy_absorption': 0.3, 'scattering': 0.5}
-        else: self.material_properties = material_properties
-        
-        if ray_tracing_params is None: self.ray_tracing_params = {'receiver_radius': 0.5, 'n_rays': 10000, 'energy_thres': 1e-5}
-        else: self.ray_tracing_params = ray_tracing_params
         
         
     def compose_room(
@@ -47,6 +33,7 @@ class RoomSimulator():
             phone_rotation: np.ndarray = np.array([0, -90, 0]),
             signal: np.ndarray | None = None,
             corners: np.ndarray = None, 
+            shape: str = "shoebox",
             material_properties: dict = None, 
             ray_tracing_params: dict = None,
             extrude_height: float = None,
@@ -73,7 +60,7 @@ class RoomSimulator():
         if generate_new_room:
             # Generate a random room if corners are not provided
             logging.info("Generating new room...")
-            self._room_gen = RoomGenerator(corners=corners, material_properties=material_properties, ray_tracing_params=ray_tracing_params, fs=fs, extrude_height=extrude_height)
+            self._room_gen = RoomGenerator(corners=corners, shape=shape, material_properties=material_properties, ray_tracing_params=ray_tracing_params, fs=fs, extrude_height=extrude_height)
             self.seed = self.random_gen.integers(0, 10000)
             room, _ = self._room_gen.generate_room(seed=self.seed)
         else:
@@ -191,13 +178,14 @@ class RoomSimulator():
         return (bz_rir, dz_rir) # TODO: Should this also return a second (None, None) tuple?
 
     
-    def regularize_rir(self, rirs, rt60=None):
+    def regularize_rir(self, rirs, rt60=None, dtype=np.float64):
         """Regularize the RIR by cutting it to the longest RIR length or RT60 time if defined.
 
         Args:
             rirs (list): List containing all RIRs.
             rt60 (list, optional): List containing all RT60 times. Defaults to None.
-
+            dtype (np.dtype, optional): The data type to use for the RIRs. Defaults to np.float64.
+            
         Returns:
             np.ndarray: A numpy array containing the regularized RIRs. [mic, source, samples]
         """
@@ -224,7 +212,7 @@ class RoomSimulator():
                 
         logger.info(f"Regularized RIRs to shape {rirs_np.shape}!")
         
-        return rirs_np
+        return rirs_np.astype(dtype=dtype)
     
     def plot_room(self):
         """Plot the room"""
@@ -237,8 +225,7 @@ class RoomSimulator():
     
 
 
-
-if __name__ == "__main__":
+def main():
     from scipy.io import wavfile
     
     logging.basicConfig(
@@ -253,8 +240,9 @@ if __name__ == "__main__":
     
     room_params = {
         "fs": fs,
-        "n_mics": 12,
+        "n_mics": 6,
         "mic_radius": 0.5,
+        "shape": "shoebox",
         "signal": signal,
     }
     
@@ -298,3 +286,7 @@ if __name__ == "__main__":
         plt.ylabel("Amplitude")
         plt.legend()
         plt.show()
+
+
+if __name__ == "__main__":
+    main()
