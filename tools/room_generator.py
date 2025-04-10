@@ -17,7 +17,7 @@ class RoomGenerator:
             extrude_height (float): Height to extrude the room.
         """
         self.corners = corners
-        assert shape in ["shoebox", "troom", "lroom"], f"Invalid room shape: {shape}. Must be one of ['shoebox', 'troom', 'lroom']."
+        assert shape in ["shoebox", "t_room", "l_room"], f"Invalid room shape: {shape}. Must be one of ['shoebox', 't_room', 'l_room']."
         self.shape = shape
         self.material_properties = material_properties
         self.fs = fs
@@ -74,9 +74,9 @@ class RoomGenerator:
         if self.corners is None:
             if self.shape == "shoebox":
                 self.corners, self.extrude_height = self._compose_random_shoebox(np_random_generator=random_gen)
-            elif self.shape == "troom":
+            elif self.shape == "t_room":
                 self.corners, self.extrude_height = self._compose_random_troom()
-            elif self.shape == "lroom":
+            elif self.shape == "l_room":
                 self.corners, self.extrude_height = self._compose_random_lroom()
         
         
