@@ -56,6 +56,19 @@ if __name__ == "__main__":
         # Make a unique identifier for the dataset
         unique_identifier = dataset[0] + dataset[-1] # e.g. s3 for shoebox/run3
 
+        # Create a directory for the dataset configs.
+        dataset_config_path = merged_dataset_path / 'configs'
+        dataset_config_path.mkdir(parents=True, exist_ok=True)
+
+        # Link the config.yml file 
+        config_file_path = dataset_path / 'config.yml'
+        if config_file_path.exists():
+            symlink_target = dataset_config_path / f"{unique_identifier}_config.yml"
+            try:
+                symlink_target.symlink_to(config_file_path.resolve())
+            except FileExistsError:
+                print(f"Symlink already exists: {symlink_target}")
+
         for subdir in ['train', 'test', 'val']:
             source_dir = dataset_path / subdir
             target_dir = merged_dataset_path / subdir
