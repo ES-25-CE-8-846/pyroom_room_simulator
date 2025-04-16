@@ -179,12 +179,6 @@ def main():
 
 
     # Apply filters to original signal
-    # Grab original wav signal
-    fs, signal_raw = wavfile.read("wav_files/relaxing-guitar-loop-v5-245859.wav")
-    signal_raw = signal_raw.astype(np.float32)
-    if signal_raw.ndim > 1:
-        signal_raw = np.mean(signal_raw, axis=1)  # mono
-
     # Apply filters: assume filters are stacked [spk1_filter, spk2_filter, ...]
     num_sources = len(room.sources)
     filters = filters.reshape(-1, 1)  # [num_sources * filter_len, 1]
