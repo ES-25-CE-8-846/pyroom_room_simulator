@@ -34,10 +34,11 @@ class RoomSimulator():
             signal: np.ndarray | None = None,
             corners: np.ndarray = None, 
             shape: str = "shoebox",
-            material_properties: dict = None, 
+            material_properties_bounds: dict = None, 
             ray_tracing_params: dict = None,
             extrude_height: float = None,
             generate_new_room: bool = True,
+            room_bounds: dict = None,
             *args,
             **kwargs,
         ):
@@ -46,12 +47,16 @@ class RoomSimulator():
 
         Args:
             n_mics (int, optional): Number of mics in cicle. Defaults to 12.
+            fs (int): Sampling frequency.
             mic_radius (float, optional): The radius of the mic circle. Defaults to 0.5.
             phone_rotation (np.ndarray, optional): The rotation of the phone in Euler angles (XYZ). Defaults to np.array(0, -90, 0) (Standing).
+            signal (np.ndarray, optional): The signal to be used. Defaults to None.
             corners (np.ndarray, optional): The corners of the room. Defaults to None (Randomized).
-            material_properties (dict, optional): _description_. Defaults to check yo self >:).
-            ray_tracing_params (dict, optional): _description_. Defaults to check yo self >:).
-            extrude_height (float, optional): Height of the room. Defaults to None (Random between 2->3).
+            shape (str, optional): The shape of the room. Defaults to "shoebox".
+            material_properties_bounds (dict, optional): The bounds of the randomly generated material. Defaults to None (Randomized).
+            ray_tracing_params (dict, optional): Set the ray tracing parameters. If not set, ray tracing is not used. Defaults to None.
+            extrude_height (float, optional): Height of the room.
+            room_bounds (dict, optional): The bounds of the room. Defaults to (3,10,3,10,2,5).
         """
         if self.signal is None or signal is not None:
             logging.debug("Setting signal...")
@@ -60,21 +65,24 @@ class RoomSimulator():
         if generate_new_room:
             # Generate a random room if corners are not provided
             logging.info("Generating new room...")
-            self._room_gen = RoomGenerator(corners=corners, shape=shape, material_properties=material_properties, ray_tracing_params=ray_tracing_params, fs=fs, extrude_height=extrude_height)
+            self._room_gen = RoomGenerator(corners=corners, shape=shape, material_properties_bounds=material_properties_bounds, ray_tracing_params=ray_tracing_params, fs=fs, extrude_height=extrude_height)
             self.seed = self.random_gen.integers(0, 10000)
-            room, _ = self._room_gen.generate_room(seed=self.seed)
+            room, _ = self._room_gen.generate_room(seed=self.seed, room_bounds=room_bounds)
         else:
             # Generate same room, essentially obtaining an empty room :)
             logging.info("Generating same room...")
-            room, _ = self._room_gen.generate_room(seed=self.seed)
+            room, _ = self._room_gen.generate_room(seed=self.seed, room_bounds=room_bounds)
         
         # Add mic circle
         room_bbox = room.get_bbox() # in m
         phone_pos = [
             self.random_gen.uniform(room_bbox[0,0]+mic_radius, room_bbox[0,1]-mic_radius),
             self.random_gen.uniform(room_bbox[1,0]+mic_radius, room_bbox[1,1]-mic_radius),
-            self.random_gen.uniform(room_bbox[2,0]+0.1, room_bbox[2,1]-0.1),
+            self.random_gen.normal(loc=1.7, scale=0.1),
         ]
+        # Check if the phone position is inside the room
+        while (phone_pos[2] < room_bbox[2,0] or phone_pos[2] > room_bbox[2,1]):
+            phone_pos[2] = self.random_gen.normal(loc=1.7, scale=0.1)
         
         mic_circle_gen = MicrophoneCircle(center=phone_pos, n_mics=n_mics, radius=mic_radius)
         dark_zone_mics = mic_circle_gen.get_microphone_positions()
@@ -100,9 +108,10 @@ class RoomSimulator():
             "phone_rotation": phone_rotation,
             "signal": signal,
             "corners": corners, 
-            "material_properties": material_properties, 
+            "material_properties_bounds": material_properties_bounds, 
             "ray_tracing_params": ray_tracing_params,
             "extrude_height": extrude_height,
+            "room_bounds": room_bounds,
         }
         
         return True
@@ -196,7 +205,7 @@ class RoomSimulator():
         if rt60 is None: cutoff_idx = max([max([len(source) for source in mic]) for mic in rirs]); logger.info("Using max length")
         else: cutoff_idx = int(self.room_params["fs"] * max([max(mic) for mic in rt60])); logger.info("Using RT60 length")
         
-        # Go trough each RIR
+        # Go through each RIR
         rirs_np = np.zeros((len(rirs), len(rirs[0]), cutoff_idx))
 
         for n_mic, mic in enumerate(rirs):
@@ -244,6 +253,23 @@ def main():
         "mic_radius": 0.5,
         "shape": "shoebox",
         "signal": signal,
+        "room_bounds": {
+            "min_width": 3.0, 
+            "max_width": 10.0, 
+            "min_length": 3.0, 
+            "max_length": 10.0, 
+            "min_extrude": 2.0, 
+            "max_extrude": 5.0
+        },
+        "material_properties_bounds": {
+                "energy_absorption": (0.6, 0.9),
+                "scattering": (0.05, 0.1),
+        },
+        # "ray_tracing_params": {
+        #     "receiver_radius": 0.05,
+        #     "n_rays": 10000,
+        #     "energy_thres": 1e-7,
+        # },
     }
     
     room_sim = RoomSimulator(seed=42)
