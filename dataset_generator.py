@@ -175,7 +175,8 @@ def main():
                 "min_extrude": 2.0, 
                 "max_extrude": 5.0
             },
-            "material_properties_bounds": {
+            "desired_rt68": 0.5,
+            "material_properties_bounds": { #  # If desired_rt68 is None, this will be used
                 "energy_absorption": (0.6, 0.9),
                 "scattering": (0.05, 0.1),
             },

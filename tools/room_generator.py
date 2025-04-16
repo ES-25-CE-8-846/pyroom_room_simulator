@@ -6,7 +6,8 @@ logger = logging.getLogger(__name__)
 
 class RoomGenerator:
     def __init__(self,
-                 shape: str = "shoebox", 
+                 shape: str = "shoebox",
+                 desired_rt60: float = None, 
                  material_properties_bounds={"energy_absorption": None, "scattering": None}, 
                  fs=48000, 
                  ray_tracing_params=None,):
@@ -21,6 +22,7 @@ class RoomGenerator:
         """
         assert shape in ["shoebox", "t_room", "l_room"], f"Invalid room shape: {shape}. Must be one of ['shoebox', 't_room', 'l_room']."
         self.shape = shape
+        self.desired_rt60 = desired_rt60
         self.material_properties_bounds = material_properties_bounds
         self.fs = fs
         self.use_ray_tracing = True if ray_tracing_params is not None else False
@@ -80,18 +82,53 @@ class RoomGenerator:
         elif self.shape == "l_room":
             corners, extrude_height = self._compose_random_lroom()
 
-        # If material properties are not set, use default values
-        if self.material_properties_bounds is None:
-            material_properties = {
-                'energy_absorption': random_gen.uniform(0.4, 0.6),
-                'scattering': random_gen.uniform(0.4, 0.6)
-            }
+        # TODO: Implement it for ray tracing https://github.com/LCAV/pyroomacoustics/blob/master/examples/room_from_rt60.py
+        if (self.desired_rt60 is not None):
+            # If desired RT60 is set, use it to calculate material properties
+            logger.info(f"Desired RT60: {self.desired_rt60}")
+            room_dim = [corners[2,0], corners[2,1], extrude_height,] # x, y, z
+            e_absorption, max_order = pra.inverse_sabine(rt60=self.desired_rt60, room_dim=room_dim,)
+            logger.info(f"Calculated e_absorption: {e_absorption}, max_order: {max_order}")
+            
+            # Create the room
+            if not self.use_ray_tracing:
+                room = pra.Room.from_corners(
+                    corners.T,  
+                    fs=self.fs,
+                    materials=pra.Material(e_absorption), 
+                    max_order=max_order if max_order < 10 else 10,
+                    use_rand_ism=True,
+                    air_absorption=True, 
+                )
+            elif self.use_ray_tracing:
+                # If ray tracing is used, set the maximum order for ray tracing
+                room = pra.Room.from_corners(
+                    corners.T, 
+                    fs=self.fs,
+                    materials=pra.Material(e_absorption),
+                    max_order=3, 
+                    ray_tracing=self.use_ray_tracing, 
+                    air_absorption=True, 
+                )
+            else: raise ValueError("Invalid room generation parameters.")
+            
         else:
-            material_properties = {
-                'energy_absorption': random_gen.uniform(self.material_properties_bounds['energy_absorption'][0], self.material_properties_bounds['energy_absorption'][1]),
-                'scattering': random_gen.uniform(self.material_properties_bounds['scattering'][0], self.material_properties_bounds['scattering'][1])
-            }
-        logger.info(f"Material properties: {material_properties}")
+            # If material properties are not set, use default values
+            if self.material_properties_bounds is None:
+                material_properties = {
+                    'energy_absorption': random_gen.uniform(0.4, 0.6),
+                    'scattering': random_gen.uniform(0.4, 0.6)
+                }
+            else:
+                material_properties = {
+                    'energy_absorption': random_gen.uniform(self.material_properties_bounds['energy_absorption'][0], self.material_properties_bounds['energy_absorption'][1]),
+                    'scattering': random_gen.uniform(self.material_properties_bounds['scattering'][0], self.material_properties_bounds['scattering'][1])
+                }
+            logger.info(f"Material properties: {material_properties}")
+            
+            # Create the room with the specified material properties
+            material = pra.Material(energy_absorption=material_properties['energy_absorption'], scattering=material_properties['scattering'])
+            room = pra.Room.from_corners(corners.T, materials=material, fs=self.fs, ray_tracing=self.use_ray_tracing, air_absorption=True, max_order=10)
         
         # If ray tracing parameters are not set, use default values
         if self.use_ray_tracing:
@@ -103,16 +140,16 @@ class RoomGenerator:
             }
         
 
-        material = pra.Material(energy_absorption=material_properties['energy_absorption'],
-                                scattering=material_properties['scattering'])
-        room = pra.Room.from_corners(corners.T, materials=material, fs=self.fs, ray_tracing=self.use_ray_tracing, air_absorption=True, max_order=10)
+        # Extrude the room to create a 3D room
         room.extrude(extrude_height)
         
         if self.use_ray_tracing:
             logger.info(f"Ray tracing parameters: {ray_tracing_params}")
-            room.set_ray_tracing(receiver_radius=ray_tracing_params['receiver_radius'],
-                                n_rays=ray_tracing_params['n_rays'],
-                                energy_thres=ray_tracing_params['energy_thres'])
+            room.set_ray_tracing(
+                receiver_radius=ray_tracing_params['receiver_radius'],
+                # n_rays=ray_tracing_params['n_rays'], # FIXME: REMEMBER TO UNCOMMENT THIS
+                # energy_thres=ray_tracing_params['energy_thres'],
+            )
         
         dimensions = {
             'width': room.get_bbox()[0,1],

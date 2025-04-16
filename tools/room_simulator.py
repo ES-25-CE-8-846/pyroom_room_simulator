@@ -33,6 +33,7 @@ class RoomSimulator():
             phone_rotation: np.ndarray = np.array([0, -90, 0]),
             signal: np.ndarray | None = None,
             shape: str = "shoebox",
+            desired_rt60: float = None,
             material_properties_bounds: dict = None, 
             ray_tracing_params: dict = None,
             generate_new_room: bool = True,
@@ -50,6 +51,7 @@ class RoomSimulator():
             phone_rotation (np.ndarray, optional): The rotation of the phone in Euler angles (XYZ). Defaults to np.array(0, -90, 0) (Standing).
             signal (np.ndarray, optional): The signal to be used. Defaults to None.
             shape (str, optional): The shape of the room. Defaults to "shoebox".
+            desired_rt60 (float, optional): The desired RT60 time. Defaults to None, thus using the defined material_properties_bounds.
             material_properties_bounds (dict, optional): The bounds of the randomly generated material. Defaults to None (Randomized).
             ray_tracing_params (dict, optional): Set the ray tracing parameters. If not set, ray tracing is not used. Defaults to None.
             room_bounds (dict, optional): The bounds of the room. Defaults to (3,10,3,10,2,5).
@@ -61,7 +63,7 @@ class RoomSimulator():
         if generate_new_room:
             # Generate a random room
             logging.info("Generating new room...")
-            self._room_gen = RoomGenerator(shape=shape, material_properties_bounds=material_properties_bounds, ray_tracing_params=ray_tracing_params, fs=fs)
+            self._room_gen = RoomGenerator(shape=shape, desired_rt60=desired_rt60, material_properties_bounds=material_properties_bounds, ray_tracing_params=ray_tracing_params, fs=fs)
             self.seed = self.random_gen.integers(0, 10000)
             room, _ = self._room_gen.generate_room(seed=self.seed, room_bounds=room_bounds)
         else:
@@ -103,6 +105,7 @@ class RoomSimulator():
             "mic_radius": mic_radius,
             "phone_rotation": phone_rotation,
             "signal": signal,
+            "desired_rt60": desired_rt60,
             "material_properties_bounds": material_properties_bounds, 
             "ray_tracing_params": ray_tracing_params,
             "room_bounds": room_bounds,
@@ -255,15 +258,16 @@ def main():
             "min_extrude": 2.0, 
             "max_extrude": 5.0
         },
+        "desired_rt60": 0.2, # in seconds
         "material_properties_bounds": {
                 "energy_absorption": (0.6, 0.9),
                 "scattering": (0.05, 0.1),
         },
-        # "ray_tracing_params": {
-        #     "receiver_radius": 0.05,
-        #     "n_rays": 10000,
-        #     "energy_thres": 1e-7,
-        # },
+        "ray_tracing_params": {
+            "receiver_radius": 0.4,
+            "n_rays": 10000,
+            "energy_thres": 1e-7,
+        },
     }
     
     room_sim = RoomSimulator(seed=42)
@@ -273,8 +277,8 @@ def main():
     room_sim.plot_room()
     
     # Randomize the phone position
-    room_sim.randomize_room()
-    room_sim.plot_room()
+    # room_sim.randomize_room()
+    # room_sim.plot_room()
     
     # Compute the RIRs and RT60 times
     rirs, rt60s = room_sim.compute_rir(rt60=True, plot=False)
