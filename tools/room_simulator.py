@@ -46,7 +46,7 @@ class RoomSimulator():
             Sets the `self.room` and `self.room_dims` variables
 
         Args:
-            n_mics (int, optional): Number of mics in cicle. Defaults to 12.
+            n_mics (int, optional): Number of mics in circle. Defaults to 12.
             fs (int): Sampling frequency.
             mic_radius (float, optional): The radius of the mic circle. Defaults to 0.5.
             phone_rotation (np.ndarray, optional): The rotation of the phone in Euler angles (XYZ). Defaults to np.array(0, -90, 0) (Standing).

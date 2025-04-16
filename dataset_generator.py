@@ -40,7 +40,7 @@ class DatasetGenerator:
         self.root: Path = Path(kwargs.get("root", "dataset")) / self.shape / self.name
         
         self.regularizer: str = kwargs.get("regularizer", "rt60")
-        # Esure regularizer is valid
+        # Ensure regularizer is valid
         assert self.regularizer in ["rt60", "maxlen"], "Regularizing must be either 'rt60' or 'maxlen'"
         
         self.dtype: type = kwargs.get("dtype", np.float32)
