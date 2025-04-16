@@ -61,7 +61,7 @@ class DatasetGenerator:
         return True
 
 
-    def simulate_room(self, room_params, num_phone_pos: int = 1, save_dir: Path = None, dtype = np.float32, plot=False, seed: int = None):
+    def simulate_room(self, room_params, num_phone_pos: int = 1, save_dir: Path = None, dtype = np.float32, plot=False):
         """
         Simulate the room using the RoomSimulator class.
         """
@@ -148,16 +148,16 @@ def main():
         
         "splits": {
             "train": {
-                "num_rooms": 5,
-                "num_phone_pos": 5,
+                "num_rooms": 10,
+                "num_phone_pos": 10,
             },
             "val": {
-                "num_rooms": 3,
-                "num_phone_pos": 4,
+                "num_rooms": 2,
+                "num_phone_pos": 10,
             },
             "test": {
                 "num_rooms": 2,
-                "num_phone_pos": 3,
+                "num_phone_pos": 10,
             },
         },
         
@@ -165,8 +165,7 @@ def main():
             "fs": fs,
             "n_mics": 12,
             "mic_radius": 0.5,
-            "corners": None, # If set, will overrule shape and room_bounds
-            "shape": "shoebox", # "shoebox", "l_room", "t_room" <- shape is only used for naming if corners are set
+            "shape": "shoebox", # "shoebox", "l_room", "t_room"
             "signal": signal,
             "room_bounds": {
                 "min_width": 3.0, 

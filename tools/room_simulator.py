@@ -32,11 +32,9 @@ class RoomSimulator():
             mic_radius: float = 0.5,
             phone_rotation: np.ndarray = np.array([0, -90, 0]),
             signal: np.ndarray | None = None,
-            corners: np.ndarray = None, 
             shape: str = "shoebox",
             material_properties_bounds: dict = None, 
             ray_tracing_params: dict = None,
-            extrude_height: float = None,
             generate_new_room: bool = True,
             room_bounds: dict = None,
             *args,
@@ -51,11 +49,9 @@ class RoomSimulator():
             mic_radius (float, optional): The radius of the mic circle. Defaults to 0.5.
             phone_rotation (np.ndarray, optional): The rotation of the phone in Euler angles (XYZ). Defaults to np.array(0, -90, 0) (Standing).
             signal (np.ndarray, optional): The signal to be used. Defaults to None.
-            corners (np.ndarray, optional): The corners of the room. Defaults to None (Randomized).
             shape (str, optional): The shape of the room. Defaults to "shoebox".
             material_properties_bounds (dict, optional): The bounds of the randomly generated material. Defaults to None (Randomized).
             ray_tracing_params (dict, optional): Set the ray tracing parameters. If not set, ray tracing is not used. Defaults to None.
-            extrude_height (float, optional): Height of the room.
             room_bounds (dict, optional): The bounds of the room. Defaults to (3,10,3,10,2,5).
         """
         if self.signal is None or signal is not None:
@@ -63,9 +59,9 @@ class RoomSimulator():
             self.signal = signal
         
         if generate_new_room:
-            # Generate a random room if corners are not provided
+            # Generate a random room
             logging.info("Generating new room...")
-            self._room_gen = RoomGenerator(corners=corners, shape=shape, material_properties_bounds=material_properties_bounds, ray_tracing_params=ray_tracing_params, fs=fs, extrude_height=extrude_height)
+            self._room_gen = RoomGenerator(shape=shape, material_properties_bounds=material_properties_bounds, ray_tracing_params=ray_tracing_params, fs=fs)
             self.seed = self.random_gen.integers(0, 10000)
             room, _ = self._room_gen.generate_room(seed=self.seed, room_bounds=room_bounds)
         else:
@@ -107,10 +103,8 @@ class RoomSimulator():
             "mic_radius": mic_radius,
             "phone_rotation": phone_rotation,
             "signal": signal,
-            "corners": corners, 
             "material_properties_bounds": material_properties_bounds, 
             "ray_tracing_params": ray_tracing_params,
-            "extrude_height": extrude_height,
             "room_bounds": room_bounds,
         }
         

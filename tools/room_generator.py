@@ -5,36 +5,32 @@ import logging
 logger = logging.getLogger(__name__)
 
 class RoomGenerator:
-    def __init__(self, 
-                 corners=None, 
+    def __init__(self,
                  shape: str = "shoebox", 
                  material_properties_bounds={"energy_absorption": None, "scattering": None}, 
                  fs=48000, 
-                 ray_tracing_params=None, 
-                 extrude_height=None):
+                 ray_tracing_params=None,):
         """
         Initialize the RoomGenerator.
 
         Parameters:
-            corners (np.array): Array of room corners [x, y].
+            shape (str): Shape of the room. Options are "shoebox", "t_room", "l_room".
             material_properties_bounds (dict): Dictionary with 'energy_absorption' and 'scattering' bounds.
             fs (int): Sampling frequency.
             ray_tracing_params (dict): Dictionary with 'receiver_radius', 'n_rays', and 'energy_thres'.
-            extrude_height (float): Height to extrude the room.
         """
-        self.corners = corners
         assert shape in ["shoebox", "t_room", "l_room"], f"Invalid room shape: {shape}. Must be one of ['shoebox', 't_room', 'l_room']."
         self.shape = shape
         self.material_properties_bounds = material_properties_bounds
         self.fs = fs
         self.use_ray_tracing = True if ray_tracing_params is not None else False
         self.ray_tracing_params = ray_tracing_params
-        self.extrude_height = extrude_height
+
 
     # TODO: Needs a v2
     def _compose_random_shoebox(self, np_random_generator: np.random.Generator, min_width = 3.0, max_width = 10.0, min_length = 3.0, max_length = 10.0, min_extrude = 2.0, max_extrude = 5.0, **kwargs) -> tuple[np.ndarray, float]:
         """
-        Compose a shoebox room with the specified corners and material properties.
+        Compose a shoebox room.
         """
         logger.info("Generating random shoebox room")
         logger.info(f"Bounds: {min_width}, {max_width}, {min_length}, {max_length}, {min_extrude}, {max_extrude}")
@@ -42,19 +38,17 @@ class RoomGenerator:
         # Generate random width and length
         width = np_random_generator.uniform(min_width, max_width)
         length = np_random_generator.uniform(min_length, max_length)
+        logger.info(f"Width: {width}, Length: {length}")
         corners = np.array([[0, 0], [0, width], [length, width], [length, 0]])
         
-        if self.extrude_height is None:
-            extrude_height = np_random_generator.uniform(min_extrude, max_extrude)
-            return corners, extrude_height
-        
-        return corners, self.extrude_height
+        extrude_height = np_random_generator.uniform(min_extrude, max_extrude)
+        return corners, extrude_height
     
     
     # FIXME: Make this
     def _compose_random_troom(self,) -> tuple[np.ndarray, float]:
         """
-        Compose a T-shaped room with the specified corners and material properties.
+        Compose a T-shaped room.
         """
         raise NotImplementedError("T-shaped room composition is not implemented.")
         return corners, extrude_height
@@ -63,7 +57,7 @@ class RoomGenerator:
     # FIXME: Make this
     def _compose_random_lroom(self,) -> tuple[np.ndarray, float]:
         """
-        Compose a L-shaped room with the specified corners and material properties.
+        Compose a L-shaped room.
         """
         raise NotImplementedError("L-shaped room composition is not implemented.")
         return corners, extrude_height
@@ -71,35 +65,26 @@ class RoomGenerator:
     
     def generate_room(self, seed=None, room_bounds=None) -> tuple[pra.Room, dict]:
         """
-        Generate the room with the specified properties. If ´corners´ is not set, a room with random width and length is generated.
+        Generate a random room with the specified room_bounds.
         """
         
         # Set randomness generator seed
         random_gen = np.random.default_rng(seed=seed)
         
         
-        # If corners is not set, generate random corners
-        if self.corners is None:
-            if self.shape == "shoebox":
-                corners, extrude_height = self._compose_random_shoebox(np_random_generator=random_gen, **room_bounds)
-            elif self.shape == "t_room":
-                corners, extrude_height = self._compose_random_troom()
-            elif self.shape == "l_room":
-                corners, extrude_height = self._compose_random_lroom()
-        
-        
-        # If corners is set, use them to generate the room
-        else:
-            width = np.max(self.corners[1, :]) - np.min(self.corners[1, :])
-            length = np.max(self.corners[0, :]) - np.min(self.corners[0, :])
-            corners = np.array([[0, 0], [0, width], [length, width], [length, 0]])
-            extrude_height = random_gen.uniform(min(2.0, width, length), min(width, length))
+        # Generate random corners
+        if self.shape == "shoebox":
+            corners, extrude_height = self._compose_random_shoebox(np_random_generator=random_gen, **room_bounds)
+        elif self.shape == "t_room":
+            corners, extrude_height = self._compose_random_troom()
+        elif self.shape == "l_room":
+            corners, extrude_height = self._compose_random_lroom()
 
         # If material properties are not set, use default values
         if self.material_properties_bounds is None:
             material_properties = {
-                'energy_absorption': random_gen.uniform(0.1, 0.9),
-                'scattering': random_gen.uniform(0.1, 0.9)
+                'energy_absorption': random_gen.uniform(0.4, 0.6),
+                'scattering': random_gen.uniform(0.4, 0.6)
             }
         else:
             material_properties = {
