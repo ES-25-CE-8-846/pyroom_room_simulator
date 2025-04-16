@@ -83,8 +83,8 @@ class RoomGenerator:
         # If material properties are not set, use default values
         if self.material_properties_bounds is None:
             material_properties = {
-                'energy_absorption': random_gen.uniform(0.1, 0.9),
-                'scattering': random_gen.uniform(0.1, 0.9)
+                'energy_absorption': random_gen.uniform(0.4, 0.6),
+                'scattering': random_gen.uniform(0.4, 0.6)
             }
         else:
             material_properties = {
