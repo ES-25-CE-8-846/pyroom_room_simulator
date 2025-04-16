@@ -165,10 +165,26 @@ def main():
             "fs": fs,
             "n_mics": 12,
             "mic_radius": 0.5,
-            "corners": None,
+            "corners": None, # If set, will overrule shape and room_bounds
             "shape": "shoebox", # "shoebox", "l_room", "t_room" <- shape is only used for naming if corners are set
             "signal": signal,
-            # TODO: Implement shape settings or something similar for the random generation of corners
+            "room_bounds": {
+                "min_width": 3.0, 
+                "max_width": 10.0, 
+                "min_length": 3.0, 
+                "max_length": 10.0, 
+                "min_extrude": 2.0, 
+                "max_extrude": 5.0
+            },
+            "material_properties_bounds": {
+                "energy_absorption": (0.6, 0.9),
+                "scattering": (0.05, 0.1),
+            },
+            # "ray_tracing_params": {
+            #     "receiver_radius": 0.1,
+            #     "n_rays": 10000,
+            #     "energy_thres": 0.01,
+            # },
         },
         
         "regularizer": "rt60",
