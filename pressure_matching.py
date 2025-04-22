@@ -10,6 +10,45 @@ import soundfile as sf
 from scipy.linalg import toeplitz
 from numpy.linalg import inv
 
+def pressure_matching(ir_bright, ir_dark, ir_length, lambd):
+    """
+    PM filter design with least-squares minimization.
+    Returns filters [num_sources, L]
+    """
+    M_bright, S, N = ir_bright.shape
+    M_dark, _, _ = ir_dark.shape
+    
+    # Compute convolution matrices for bright and dark zones
+    H_bright = []
+    for s in range(S): # Go through each source in bright zone
+        Hs = []
+        for m in range(M_bright): # Go through each mic in bright zone
+            Hs.append(toeplitz(np.r_[ir_bright[m, s], np.zeros(ir_length - 1)], np.zeros(ir_length)))
+        H_bright.append(np.vstack(Hs))  # [M_bright*signal_len, length]
+    
+    H_dark = []
+    for s in range(S):
+        Hs = []
+        for m in range(M_dark):
+            Hs.append(toeplitz(np.r_[ir_dark[m, s], np.zeros(ir_length - 1)], np.zeros(ir_length)))
+        H_dark.append(np.vstack(Hs))
+
+
+    filters = []
+    for s in range(S): # Compute filter for each source
+        H_b = H_bright[s]
+        H_d = H_dark[s]
+
+        d = np.zeros(H_b.shape[0])
+        d[len(d)//2] = 1.0  # Dirac at center (desired pressure)
+
+        A = H_b.T @ H_b + lambd * (H_d.T @ H_d) # Cost function
+        b = H_b.T @ d # Desired pressure in bright zone
+
+        h = np.linalg.solve(A, b) # Solve for filter coefficients
+        filters.append(h)
+
+    return np.stack(filters)  # shape [num_sources, L]
 
 def main():
     # specify signal source
@@ -17,6 +56,7 @@ def main():
     if signal.ndim > 1:
         signal = np.mean(signal, axis=1)  # Average channels to convert to mono
     signal = signal / np.max(np.abs(signal) + 1e-8)  # Normalize
+
 
     # Define room properties
     material_properties = {'energy_absorption': 0.3, 'scattering': 0.5}
@@ -58,9 +98,8 @@ def main():
     phone_speakers = phone_speaker.get_speaker_positions()
 
     # Add the speakers to the room as sources
-    #for pos in phone_speakers:
-    #    room.add_source(pos, signal=signal/len(phone_speakers))
-    room.add_source(phone_speakers[0], signal=signal)
+    for pos in phone_speakers:
+        room.add_source(pos, signal=signal)
 
     # Add the microphone arrays to the room
     all_mics = np.concatenate([bright_zone_mics, dark_zone_mics], axis=0)
@@ -85,10 +124,7 @@ def main():
     print("Calculating impulse responses...")
     impulse_responses = room.rir  # List of lists: [mic][source] -> array of IR
 
-    # == Prepare impulse responses for VAST ==
-    target_length = 2048  # IR length
-    filter_length = 2048  # Filter length for VAST
-    alpha = 100          # Trade-off between zones
+    ir_length = 2048
 
     num_sources = len(room.sources)
     num_mics_total = len(room.mic_array.R.T)
@@ -100,19 +136,23 @@ def main():
     assert num_mics_total == num_mics_bright + num_mics_dark
 
     # Init IR containers
-    ir_bright = np.zeros((num_mics_bright, num_sources, target_length))
-    ir_dark = np.zeros((num_mics_dark, num_sources, target_length))
+    ir_bright = np.zeros((num_mics_bright, num_sources, ir_length))
+    ir_dark = np.zeros((num_mics_dark, num_sources, ir_length))
 
 
     for m in range(num_mics_total):
         for s in range(num_sources):
-            ir = impulse_responses[m][s][:target_length]
+            ir = impulse_responses[m][s][:ir_length]
             if m < num_mics_bright:
                 ir_bright[m, s, :len(ir)] = ir
             else:
                 ir_dark[m - num_mics_bright, s, :len(ir)] = ir
 
-    original_mic_signals = room.mic_array.signals  # shape: [num_mics, signal_len]
+    original_mic_signals = room.mic_array.signals
+
+    global_norm = np.max(np.abs(original_mic_signals)) + 1e-8  # USE THIS FOR ALL SCALING FROM HERE ON OUT
+    original_mic_signals = original_mic_signals / global_norm
+
     original_bright_mic_signal = original_mic_signals[0]  # First bright mic
     original_dark_mic_signal = original_mic_signals[num_mics_bright]  # First dark mic
 
@@ -125,70 +165,18 @@ def main():
     plt.legend()
     plt.show()
 
-    # Normalize and clip original mic signals
-    original_bright_mic_signal = original_bright_mic_signal / (np.max(np.abs(original_bright_mic_signal)) + 1e-8)
-    original_bright_mic_signal = np.clip(original_bright_mic_signal, -1, 1)
     sf.write("bright_mic_original.wav", original_mic_signals[0], fs)
-    original_dark_mic_signal = original_dark_mic_signal / (np.max(np.abs(original_dark_mic_signal)) + 1e-8)
-    original_dark_mic_signal = np.clip(original_dark_mic_signal, -1, 1)
     sf.write("dark_mic_original.wav", original_mic_signals[num_mics_bright], fs)
     
-    ### GPT suggested code for VAST filter generation ###
+    # Apply PM filtering
 
-    def create_conv_matrix(ir, filter_length):
-        ir_padded = np.concatenate([ir, np.zeros(filter_length - 1)])
-        return toeplitz(ir_padded, np.r_[ir[0], np.zeros(filter_length - 1)]) # Create Toeplitz matrix to convolve with matrix multiplication
-
-    def vast(ir_bright, ir_dark, L=256, span_idx=None, alpha=1e-2):
-        M_b, S, _ = ir_bright.shape
-        M_d = ir_dark.shape[0]
-        if span_idx is None:
-            span_idx = np.arange(S)
-
-        S_active = len(span_idx)
-        A_b = []
-        A_d = []
-
-        for m in range(M_b):
-            row = [create_conv_matrix(ir_bright[m, s], L) for s in span_idx]
-            A_b.append(np.hstack(row))
-        A_b = np.vstack(A_b)
-
-        for m in range(M_d):
-            row = [create_conv_matrix(ir_dark[m, s], L) for s in span_idx]
-            A_d.append(np.hstack(row))
-        A_d = np.vstack(A_d)
-
-        d = np.zeros((M_b * (L + ir_bright.shape[2] - 1), 1))
-        for m in range(M_b):
-            d[m * (L + ir_bright.shape[2] - 1):(m+1)*(L + ir_bright.shape[2] - 1)] = 1.0 / M_b
-
-
-        H = inv(A_b.T @ A_b + alpha * A_d.T @ A_d) @ (A_b.T @ d)
-        return H
-
-    print("Designing VAST filters...")
-    filters = vast(ir_bright, ir_dark, L=filter_length, span_idx=[0], alpha=alpha)
+    print("Designing filters...")
+    filters = pressure_matching(ir_bright, ir_dark, ir_length, lambd=1e-8) # Increase lambd for more dark zone influence
     print("Filters designed")
-
-    # Plot VAST filters
-    plt.figure(figsize=(12, 6))
-    for i in range(num_sources):
-        start = i * filter_length
-        end = (i + 1) * filter_length
-        plt.plot(filters[start:end], label=f"Filter for Speaker {i+1}")
-    plt.title("VAST Filters for Each Speaker")
-    plt.xlabel("Sample")
-    plt.ylabel("Amplitude")
-    plt.legend()
-    plt.grid(True)
-    plt.tight_layout()
-    plt.show()
-
-
+    filter_length = filters.shape[1]
 
     # Apply filters to original signal
-    # Apply filters: assume filters are stacked [spk1_filter, spk2_filter, ...]
+
     num_sources = len(room.sources)
     filters = filters.reshape(-1, 1)  # [num_sources * filter_len, 1]
 
@@ -209,46 +197,44 @@ def main():
     print("Simulation done")
 
     # Test playback of mic signals
-    VAST_mic_signals = room.mic_array.signals  # shape: [num_mics, signal_len]
-
-    VAST_bright_mic_signal = VAST_mic_signals[0]  # First bright mic
-    VAST_dark_mic_signal = VAST_mic_signals[num_mics_bright]  # First dark mic
+    PM_mic_signals = room.mic_array.signals  # shape: [num_mics, signal_len]
+    PM_mic_signals = PM_mic_signals / global_norm  # Normalize
     
+    PM_bright_mic_signal = PM_mic_signals[0]  # First bright mic
+    PM_dark_mic_signal = PM_mic_signals[num_mics_bright]  # First dark mic
+
     # Compare the filtered signals from bright and dark zone
     plt.figure(figsize=(12, 6))
-    plt.plot(VAST_bright_mic_signal, label="Bright Zone Mic 1 Signal")
-    plt.plot(VAST_dark_mic_signal, label="Dark Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between Bright and Dark Zone Mics after VAST")
+    plt.plot(PM_bright_mic_signal, label="PM Bright Zone Mic 1 Signal")
+    plt.plot(PM_dark_mic_signal, label="PM Dark Zone Mic 1 Signal")
+    plt.title("Signal Comparison Between PM Bright and Dark Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
     plt.show()
 
-    #
+    # Compare filtered bright with original bright
     plt.figure(figsize=(12, 6))
     plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal")
-    plt.plot(VAST_bright_mic_signal, label="VAST Bright Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between orignal Bright and VAST Bright Zone Mics")
+    plt.plot(PM_bright_mic_signal, label="PM Bright Zone Mic 1 Signal")
+    plt.title("Signal Comparison Between Original and PM Bright Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
     plt.show()
 
+    # Compare filtered dark with original dark
     plt.figure(figsize=(12, 6))
     plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal")
-    plt.plot(VAST_dark_mic_signal, label="VAST Dark Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between orignal Dark and VAST Dark Zone Mics")
+    plt.plot(PM_dark_mic_signal, label="PM Dark Zone Mic 1 Signal")
+    plt.title("Signal Comparison Between Original and PM Dark Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
     plt.show()
 
-
-
-    # Optionally save to WAV
-    sf.write("bright_mic_VAST.wav", VAST_bright_mic_signal, fs)
-    sf.write("dark_mic_VAST.wav", VAST_dark_mic_signal, fs)
-
+    sf.write("bright_mic_PM.wav", PM_bright_mic_signal, fs)
+    sf.write("dark_mic_PM.wav", PM_dark_mic_signal, fs)
 
 if __name__ == "__main__":
     main()

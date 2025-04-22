@@ -25,8 +25,16 @@ def main():
     # Generate the room
     width, length = 3, 5
     corners = None #np.array([[0, 0], [0, width], [length, width], [length, 0]]).T
-    room_generator = RoomGenerator(corners=corners, material_properties=material_properties, fs=fs, ray_tracing_params=ray_tracing_params, extrude_height=np.random.uniform(2.0, 3.0))
-    room, _ = room_generator.generate_room()
+    room_generator = RoomGenerator(corners=corners, material_properties_bounds=None, fs=fs, ray_tracing_params=ray_tracing_params, extrude_height=np.random.uniform(2.0, 3.0))
+    room_bounds={
+        "min_width": 4.0,
+        "max_width": 8.0,
+        "min_length": 5.0,
+        "max_length": 10.0,
+        "min_extrude": 2.5,
+        "max_extrude": 4.0
+        }
+    room, _ = room_generator.generate_room(room_bounds=room_bounds)
 
     # Define the mic array
     from tools import MicrophoneCircle
@@ -219,7 +227,7 @@ def main():
     plt.figure(figsize=(12, 6))
     plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal")
     plt.plot(VAST_bright_mic_signal, label="VAST Bright Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between orignal Bright and VAST Bright Zone Mics")
+    plt.title("Signal Comparison Between original Bright and VAST Bright Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
@@ -228,7 +236,7 @@ def main():
     plt.figure(figsize=(12, 6))
     plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal")
     plt.plot(VAST_dark_mic_signal, label="VAST Dark Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between orignal Dark and VAST Dark Zone Mics")
+    plt.title("Signal Comparison Between original Dark and VAST Dark Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
