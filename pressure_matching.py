@@ -15,8 +15,8 @@ def pressure_matching(ir_bright, ir_dark, ir_length, lambd):
     PM filter design with least-squares minimization.
     Returns filters [num_sources, L]
     """
-    M_bright, S, N = ir_bright.shape
-    M_dark, _, _ = ir_dark.shape
+    M_bright, S, num_mics_bright = ir_bright.shape
+    M_dark, _, num_mics_dark = ir_dark.shape
     
     # Compute convolution matrices for bright and dark zones
     H_bright = []
@@ -42,13 +42,25 @@ def pressure_matching(ir_bright, ir_dark, ir_length, lambd):
         d = np.zeros(H_b.shape[0])
         d[len(d)//2] = 1.0  # Dirac at center (desired pressure)
 
-        A = H_b.T @ H_b + lambd * (H_d.T @ H_d) # Cost function
+        dark_zone_weight = num_mics_bright / num_mics_dark  # Normalize by mic count
+        A = H_b.T @ H_b + lambd * dark_zone_weight * (H_d.T @ H_d) # Cost function matrix
         b = H_b.T @ d # Desired pressure in bright zone
 
         h = np.linalg.solve(A, b) # Solve for filter coefficients
         filters.append(h)
 
     return np.stack(filters)  # shape [num_sources, L]
+
+def compare_signals(signal1, name1: str , signal2, name2: str):
+    """Compare two signals by plotting them."""
+    plt.figure(figsize=(12, 6))
+    plt.plot(signal1, label=name1)
+    plt.plot(signal2, label=name2)
+    plt.title("Signal Comparison")
+    plt.xlabel("Time")
+    plt.ylabel("Amplitude")
+    plt.legend()
+    plt.show()
 
 def main():
     # specify signal source
@@ -124,7 +136,7 @@ def main():
     print("Calculating impulse responses...")
     impulse_responses = room.rir  # List of lists: [mic][source] -> array of IR
 
-    ir_length = 2048
+    ir_length = 256
 
     num_sources = len(room.sources)
     num_mics_total = len(room.mic_array.R.T)
@@ -156,14 +168,7 @@ def main():
     original_bright_mic_signal = original_mic_signals[0]  # First bright mic
     original_dark_mic_signal = original_mic_signals[num_mics_bright]  # First dark mic
 
-    plt.figure(figsize=(12, 6))
-    plt.plot(original_bright_mic_signal, label="Bright Zone Mic 1 Signal")
-    plt.plot(original_dark_mic_signal, label="Dark Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between original Bright and Dark Zone Mics")
-    plt.xlabel("Time")
-    plt.ylabel("Amplitude")
-    plt.legend()
-    plt.show()
+    compare_signals(original_bright_mic_signal, "Original BZ", original_dark_mic_signal, "Original DZ")
 
     sf.write("bright_mic_original.wav", original_mic_signals[0], fs)
     sf.write("dark_mic_original.wav", original_mic_signals[num_mics_bright], fs)
@@ -171,12 +176,23 @@ def main():
     # Apply PM filtering
 
     print("Designing filters...")
-    filters = pressure_matching(ir_bright, ir_dark, ir_length, lambd=1e-8) # Increase lambd for more dark zone influence
+    filters = pressure_matching(ir_bright, ir_dark, ir_length, lambd=1e-10) # Increase lambd for more dark zone influence
     print("Filters designed")
     filter_length = filters.shape[1]
 
-    # Apply filters to original signal
+    # Plot filters for each speaker
+    plt.figure(figsize=(12, 6))
+    for i, h in enumerate(filters):
+        plt.plot(h, label=f"Speaker {i+1} Filter")
+    plt.title("Pressure Matching Filters for Each Speaker")
+    plt.xlabel("Filter tap index")
+    plt.ylabel("Amplitude")
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
 
+    # Apply filters to original signal
     num_sources = len(room.sources)
     filters = filters.reshape(-1, 1)  # [num_sources * filter_len, 1]
 
@@ -204,34 +220,13 @@ def main():
     PM_dark_mic_signal = PM_mic_signals[num_mics_bright]  # First dark mic
 
     # Compare the filtered signals from bright and dark zone
-    plt.figure(figsize=(12, 6))
-    plt.plot(PM_bright_mic_signal, label="PM Bright Zone Mic 1 Signal")
-    plt.plot(PM_dark_mic_signal, label="PM Dark Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between PM Bright and Dark Zone Mics")
-    plt.xlabel("Time")
-    plt.ylabel("Amplitude")
-    plt.legend()
-    plt.show()
+    compare_signals(PM_bright_mic_signal, "PM BZ", PM_dark_mic_signal, "PM DZ")
 
     # Compare filtered bright with original bright
-    plt.figure(figsize=(12, 6))
-    plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal")
-    plt.plot(PM_bright_mic_signal, label="PM Bright Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between Original and PM Bright Zone Mics")
-    plt.xlabel("Time")
-    plt.ylabel("Amplitude")
-    plt.legend()
-    plt.show()
+    compare_signals(original_bright_mic_signal, "Original BZ", PM_bright_mic_signal, "PM BZ")
 
     # Compare filtered dark with original dark
-    plt.figure(figsize=(12, 6))
-    plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal")
-    plt.plot(PM_dark_mic_signal, label="PM Dark Zone Mic 1 Signal")
-    plt.title("Signal Comparison Between Original and PM Dark Zone Mics")
-    plt.xlabel("Time")
-    plt.ylabel("Amplitude")
-    plt.legend()
-    plt.show()
+    compare_signals(original_dark_mic_signal, "Original DZ", PM_dark_mic_signal, "PM DZ")
 
     sf.write("bright_mic_PM.wav", PM_bright_mic_signal, fs)
     sf.write("dark_mic_PM.wav", PM_dark_mic_signal, fs)
