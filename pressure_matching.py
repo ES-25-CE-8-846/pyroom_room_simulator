@@ -10,9 +10,10 @@ import soundfile as sf
 from scipy.linalg import toeplitz
 from numpy.linalg import inv
 
-def pressure_matching(ir_bright, ir_dark, ir_length, lambd):
+def pressure_matching(ir_bright, ir_dark, ir_length, lambd, energy_constraint=1.0):
     """
     PM filter design with least-squares minimization.
+    Energy constraint should be 1 to maintain the same energy level as the original signal.
     Returns filters [num_sources, L]
     """
     M_bright, S, num_mics_bright = ir_bright.shape
@@ -47,6 +48,13 @@ def pressure_matching(ir_bright, ir_dark, ir_length, lambd):
         b = H_b.T @ d # Desired pressure in bright zone
 
         h = np.linalg.solve(A, b) # Solve for filter coefficients
+
+        # Normalize filter to achieve desired energy level
+        h_energy = np.sum(h**2)
+        if h_energy > 0:  # Prevent division by zero
+            scaling_factor = np.sqrt(energy_constraint / h_energy)
+            h = h * scaling_factor
+
         filters.append(h)
 
     return np.stack(filters)  # shape [num_sources, L]
@@ -136,7 +144,7 @@ def main():
     print("Calculating impulse responses...")
     impulse_responses = room.rir  # List of lists: [mic][source] -> array of IR
 
-    ir_length = 256
+    ir_length = 2048
 
     num_sources = len(room.sources)
     num_mics_total = len(room.mic_array.R.T)
@@ -176,7 +184,7 @@ def main():
     # Apply PM filtering
 
     print("Designing filters...")
-    filters = pressure_matching(ir_bright, ir_dark, ir_length, lambd=1e-10) # Increase lambd for more dark zone influence
+    filters = pressure_matching(ir_bright, ir_dark, ir_length, lambd=1e-2) # Increase lambd for more dark zone influence
     print("Filters designed")
     filter_length = filters.shape[1]
 
@@ -215,7 +223,7 @@ def main():
     # Test playback of mic signals
     PM_mic_signals = room.mic_array.signals  # shape: [num_mics, signal_len]
     PM_mic_signals = PM_mic_signals / global_norm  # Normalize
-    
+
     PM_bright_mic_signal = PM_mic_signals[0]  # First bright mic
     PM_dark_mic_signal = PM_mic_signals[num_mics_bright]  # First dark mic
 
