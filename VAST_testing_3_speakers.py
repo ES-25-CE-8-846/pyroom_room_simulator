@@ -87,7 +87,7 @@ def main():
     # == Prepare impulse responses for VAST ==
     target_length = 2048  # IR length
     filter_length = 2048  # Filter length for VAST
-    alpha = 100          # Trade-off between zones
+    alpha = 1e-2          # Trade-off between zones
 
     num_sources = len(room.sources)
     num_mics_total = len(room.mic_array.R.T)
@@ -116,29 +116,31 @@ def main():
     original_dark_mic_signal = original_mic_signals[num_mics_bright]  # First dark mic
 
     plt.figure(figsize=(12, 6))
-    plt.plot(original_bright_mic_signal, label="Bright Zone Mic 1 Signal")
-    plt.plot(original_dark_mic_signal, label="Dark Zone Mic 1 Signal")
+    plt.plot(original_bright_mic_signal, label="Bright Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(original_dark_mic_signal, label="Dark Zone Mic 1 Signal", alpha=0.9)
     plt.title("Signal Comparison Between original Bright and Dark Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
-    plt.show()
+    plt.savefig("results/original_bright_dark_zone_comparison.png")
 
-    # Normalize and clip original mic signals
-    original_bright_mic_signal = original_bright_mic_signal / (np.max(np.abs(original_bright_mic_signal)) + 1e-8)
-    original_bright_mic_signal = np.clip(original_bright_mic_signal, -1, 1)
-    sf.write("bright_mic_original.wav", original_mic_signals[0], fs)
-    original_dark_mic_signal = original_dark_mic_signal / (np.max(np.abs(original_dark_mic_signal)) + 1e-8)
-    original_dark_mic_signal = np.clip(original_dark_mic_signal, -1, 1)
-    sf.write("dark_mic_original.wav", original_mic_signals[num_mics_bright], fs)
+    # Make a global scaling factor to avoid clipping when saving to WAV
+    global_scaling_factor = np.max(np.abs(original_mic_signals)) + 1e-8  # Avoid division by zero
+
+    # Save original mic signals to WAV files
+    sf.write("bright_mic_original.wav", original_bright_mic_signal / global_scaling_factor, fs)
+    sf.write("dark_mic_original.wav", original_dark_mic_signal / global_scaling_factor, fs)
     
     ### GPT suggested code for VAST filter generation ###
 
     def create_conv_matrix(ir, filter_length):
-        ir_padded = np.concatenate([ir, np.zeros(filter_length - 1)])
-        return toeplitz(ir_padded, np.r_[ir[0], np.zeros(filter_length - 1)]) # Create Toeplitz matrix to convolve with matrix multiplication
+        ir = np.asarray(ir).flatten()
+        col = np.r_[ir, np.zeros(filter_length - 1)]
+        row = np.zeros(filter_length)
+        row[0] = ir[0]
+        return toeplitz(col, row)
 
-    def vast(ir_bright, ir_dark, L=256, span_idx=None, alpha=1e-2):
+    def vast(ir_bright, ir_dark, L=2048, span_idx=None, alpha=1e-2):
         M_b, S, _ = ir_bright.shape
         M_d = ir_dark.shape[0]
         if span_idx is None:
@@ -157,10 +159,21 @@ def main():
             row = [create_conv_matrix(ir_dark[m, s], L) for s in span_idx]
             A_d.append(np.hstack(row))
         A_d = np.vstack(A_d)
+        
+        
+        # Stack and average IRs over mics/sources in the bright zone
+        ir_stack = ir_bright.reshape(-1, ir_bright.shape[-1])  # shape: [M_b * S, T]
+        d_avg = np.mean(ir_stack, axis=0)  # shape: [T]
+        # Convolve it with ones to match the filter output length (approximation)
+        target_len = L + ir_bright.shape[2] - 1
+        d_conv = fftconvolve(np.ones(L), d_avg)[:target_len]
+        d_conv /= np.linalg.norm(d_conv) # Normalize energy
+        d = np.tile(d_conv, M_b).reshape(-1, 1)
 
-        d = np.zeros((M_b * (L + ir_bright.shape[2] - 1), 1))
-        for m in range(M_b):
-            d[m * (L + ir_bright.shape[2] - 1):(m+1)*(L + ir_bright.shape[2] - 1)] = 1.0 / M_b
+
+        #d = np.zeros((M_b * (L + ir_bright.shape[2] - 1), 1))
+        #for m in range(M_b):
+        #    d[m * (L + ir_bright.shape[2] - 1):(m+1)*(L + ir_bright.shape[2] - 1)] = 1.0 / M_b
 
 
         H = inv(A_b.T @ A_b + alpha * A_d.T @ A_d) @ (A_b.T @ d)
@@ -168,6 +181,7 @@ def main():
 
     print("Designing VAST filters...")
     filters = vast(ir_bright, ir_dark, L=filter_length, span_idx=[0, 1, 2], alpha=alpha)
+    #print(filters.shape)  # shape: [num_sources * filter_length, 1]
     print("Filters designed")
 
     # Plot VAST filters
@@ -182,7 +196,7 @@ def main():
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
-    plt.show()
+    plt.savefig(r"results/VAST_filters.png")
 
 
 
@@ -215,38 +229,38 @@ def main():
     
     # Compare the filtered signals from bright and dark zone
     plt.figure(figsize=(12, 6))
-    plt.plot(VAST_bright_mic_signal, label="Bright Zone Mic 1 Signal")
-    plt.plot(VAST_dark_mic_signal, label="Dark Zone Mic 1 Signal")
+    plt.plot(VAST_bright_mic_signal, label="Bright Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(VAST_dark_mic_signal, label="Dark Zone Mic 1 Signal", alpha=0.9)
     plt.title("Signal Comparison Between Bright and Dark Zone Mics after VAST")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
-    plt.show()
+    plt.savefig(r"results/VAST_bright_dark_zone_comparison.png")
 
     #
     plt.figure(figsize=(12, 6))
-    plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal")
-    plt.plot(VAST_bright_mic_signal, label="VAST Bright Zone Mic 1 Signal")
+    plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(VAST_bright_mic_signal, label="VAST Bright Zone Mic 1 Signal", alpha=0.9)
     plt.title("Signal Comparison Between original Bright and VAST Bright Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
-    plt.show()
+    plt.savefig(r"results/bright_zone_comparison.png")
 
     plt.figure(figsize=(12, 6))
-    plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal")
-    plt.plot(VAST_dark_mic_signal, label="VAST Dark Zone Mic 1 Signal")
+    plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(VAST_dark_mic_signal, label="VAST Dark Zone Mic 1 Signal", alpha=0.9)
     plt.title("Signal Comparison Between original Dark and VAST Dark Zone Mics")
     plt.xlabel("Time")
     plt.ylabel("Amplitude")
     plt.legend()
-    plt.show()
+    plt.savefig(r"results/dark_zone_comparison.png")
 
 
 
-    # Optionally save to WAV
-    sf.write("bright_mic_VAST.wav", VAST_bright_mic_signal, fs)
-    sf.write("dark_mic_VAST.wav", VAST_dark_mic_signal, fs)
+    # Save to WAV
+    sf.write("bright_mic_VAST.wav", VAST_bright_mic_signal / global_scaling_factor, fs)
+    sf.write("dark_mic_VAST.wav", VAST_dark_mic_signal / global_scaling_factor, fs)
 
 
 if __name__ == "__main__":

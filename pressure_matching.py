@@ -24,7 +24,7 @@ def pressure_matching(ir_bright, ir_dark, ir_length, lambd, energy_constraint=1.
     for s in range(S): # Go through each source in bright zone
         Hs = []
         for m in range(M_bright): # Go through each mic in bright zone
-            Hs.append(toeplitz(np.r_[ir_bright[m, s], np.zeros(ir_length - 1)], np.zeros(ir_length)))
+            Hs.append(toeplitz(np.r_[ir_bright[m, s], np.zeros(ir_length - 1)], np.zeros(ir_length))) #r_ concatenates
         H_bright.append(np.vstack(Hs))  # [M_bright*signal_len, length]
     
     H_dark = []
@@ -49,12 +49,15 @@ def pressure_matching(ir_bright, ir_dark, ir_length, lambd, energy_constraint=1.
 
         h = np.linalg.solve(A, b) # Solve for filter coefficients
 
+        """
         # Normalize filter to achieve desired energy level
         h_energy = np.sum(h**2)
         if h_energy > 0:  # Prevent division by zero
             scaling_factor = np.sqrt(energy_constraint / h_energy)
             h = h * scaling_factor
+        """
 
+        
         filters.append(h)
 
     return np.stack(filters)  # shape [num_sources, L]
