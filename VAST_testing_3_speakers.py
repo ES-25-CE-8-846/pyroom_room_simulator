@@ -87,7 +87,7 @@ def main():
     # == Prepare impulse responses for VAST ==
     target_length = 2048  # IR length
     filter_length = 2048  # Filter length for VAST
-    alpha = 1e-2          # Trade-off between zones
+    alpha = 1e-5          # Trade-off between zones
 
     num_sources = len(room.sources)
     num_mics_total = len(room.mic_array.R.T)
