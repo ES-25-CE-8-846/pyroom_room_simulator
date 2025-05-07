@@ -1,7 +1,7 @@
 import numpy as np
 from pathlib import Path
 from tools import RoomSimulator
-import yaml
+
 import logging
 
 logger = logging.getLogger(__name__)
@@ -59,7 +59,6 @@ class DatasetGenerator:
 
         self.shape: str = self.room_params["shape"]
         self.root: Path = Path(kwargs.get("root", "dataset")) / self.shape / self.name
-        self.root.mkdir(parents=True, exist_ok=False)
 
         self.regularizer: str = kwargs.get("regularizer", "rt60")
         # Ensure regularizer is valid
@@ -78,17 +77,10 @@ class DatasetGenerator:
         """
         # FIXME: Implement this, problems: variables should be stringified :)
         logger.info(f"Saving parameters to {self.root}/config.yaml")
-        # logger.critical("Saving parameters to yaml is not implemented yet")
-
-        params_to_save = (
-            params  # TODO: This is a lazy way of getting around the signal problem
-        )
-        params_to_save["room_params"][
-            "signal"
-        ] = "idk, probably relaxing guitar loop :)"
-
-        with open(self.root / "dataset_params.yaml", "w") as file:
-            yaml.dump(params_to_save, file)
+        logger.critical("Saving parameters to yaml is not implemented yet")
+        # import yaml
+        # with open("dataset_params.yaml", "w") as file:
+        #     yaml.dump(params, file)
         return True
 
     def simulate_room(
@@ -104,19 +96,10 @@ class DatasetGenerator:
         """
         simulator = RoomSimulator(seed=self.random_gen.integers(0, 10000))
 
-        room_config_dict = {"num_phone_pos": num_phone_pos}
-
         # Generate room
         simulator.compose_room(**room_params)
         if plot:
             simulator.plot_room()
-
-        room_config_dict = {
-            "num_phone_pos": num_phone_pos,
-            "bbox": simulator.room.get_bbox()[:, 1].tolist(),
-            "volume": simulator.room.get_volume().tolist(),
-            "phone_positions": {},
-        }
 
         # Do for each phone position
         for i in range(num_phone_pos):
@@ -145,16 +128,6 @@ class DatasetGenerator:
                 np.savez_compressed(save_path.absolute(), bz_rir=bz_rir, dz_rir=dz_rir)
                 logger.info(f"RIRs saved to {save_path.absolute()}")
 
-                room_config_dict["phone_positions"][
-                    f"pos_{i}"
-                ] = simulator.get_phone_pos()
-
-        if save_dir is not None:
-            config_path = save_dir / "room_config.yaml"
-            with open(config_path, "w") as file:
-                yaml.dump(room_config_dict, file)
-            logger.info(f"Saved room config to {config_path.absolute()}")
-
         return simulator
 
     def start(self):
@@ -163,22 +136,24 @@ class DatasetGenerator:
         """
         logger.info("Starting dataset generation...")
 
+        # Create the root directory if it doesn't exist
+        self.root.mkdir(parents=True, exist_ok=False)
+
         # Generate data for each split
         for split, params in self.splits.items():
-            logger.warning(f"Generating {split} split...")
+            logger.info(f"Generating {split} split...")
 
             # Generate rooms dataset
             for i in range(params["num_rooms"]):
                 logger.info(f"Generating room {i}/{params['num_rooms']}...")
                 save_dir = self.root / split / f"room_{i}"
-
                 self.simulate_room(
                     self.room_params,
                     num_phone_pos=params["num_phone_pos"],
                     save_dir=save_dir,
                     dtype=self.dtype,
                     plot=False,
-                    # seed=self.seed,
+                    seed=self.seed,
                 )
                 logger.warning(
                     f"Successfully generated room {i+1}/{params['num_rooms']}!"
@@ -214,11 +189,11 @@ def main():
                 "num_phone_pos": 10,
             },
             "val": {
-                "num_rooms": 5,
+                "num_rooms": 2,
                 "num_phone_pos": 10,
             },
             "test": {
-                "num_rooms": 5,
+                "num_rooms": 2,
                 "num_phone_pos": 10,
             },
         },
