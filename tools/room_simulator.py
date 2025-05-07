@@ -97,7 +97,9 @@ class RoomSimulator():
         room.add_microphone_array(bright_zone_mics.T)
         
         for pos in phone_speakers:
-            room.add_source(pos, signal=self.signal)
+            # room.add_source(pos, signal=self.signal)
+            room.add_source(pos, signal=self.signal/len(phone_speakers))
+        logger.info(f"Added {len(phone_speakers)} speakers to the room!")
         
         # Set the room and its params
         self.room = room
