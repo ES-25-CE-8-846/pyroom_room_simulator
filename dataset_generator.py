@@ -3,6 +3,7 @@ from pathlib import Path
 from tools import RoomSimulator
 import yaml
 import logging
+from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
@@ -76,16 +77,10 @@ class DatasetGenerator:
         """
         Save the parameters to a yaml file.
         """
-        # FIXME: Implement this, problems: variables should be stringified :)
         logger.info(f"Saving parameters to {self.root}/config.yaml")
-        # logger.critical("Saving parameters to yaml is not implemented yet")
 
-        params_to_save = (
-            params  # TODO: This is a lazy way of getting around the signal problem
-        )
-        params_to_save["room_params"][
-            "signal"
-        ] = "idk, probably relaxing guitar loop :)"
+        params_to_save = deepcopy(params)  # TODO: This is a lazy way of getting around the signal problem
+        params_to_save["room_params"]["signal"] = "idk, probably relaxing guitar loop :)"
 
         with open(self.root / "dataset_params.yaml", "w") as file:
             yaml.dump(params_to_save, file)
