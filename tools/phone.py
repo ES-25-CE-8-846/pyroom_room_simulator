@@ -25,11 +25,12 @@ class Phone:
         self.orientation = np.radians(orientation)  # Convert to radians
         
         # Define unit dict
-        unit_dict = {"mm": 1, "cm": 0.1, "m": 0.001}
+        self.unit_dict = {"mm": 1, "cm": 0.1, "m": 0.001}
+        assert unit in self.unit_dict, f"Unit '{unit}' is not supported. Choose from {list(self.unit_dict.keys())}."
         self.unit = unit
         
         # Define phone dimensions (height, width, depth)
-        self.phone_dimensions = np.array([161, 76, 9])*unit_dict[unit]
+        self.phone_dimensions = np.array([161, 76, 9])*self.unit_dict[unit]
         self.phone_center = self.phone_dimensions / 2
         
         # Compute rotation matrix
@@ -38,7 +39,9 @@ class Phone:
         # Generate speaker and microphone positions
         self.speaker_array = self._generate_speaker_positions()
         self.mic_array = self._generate_mic_positions()
-
+        self.ear_mic = self._generate_ear_mic_position(ear_offset=50.0)
+        self.mic_array = np.insert(self.mic_array, 0, self.ear_mic, axis=0)
+        
 
     def _generate_speaker_positions(self):
         """
@@ -87,6 +90,29 @@ class Phone:
             mic_positions.append(global_position)
         
         return np.array(mic_positions)
+    
+    
+    def _generate_ear_mic_position(self, ear_offset: float = 50.0):
+        """
+        Generate ear microphone position
+        
+        Parameters:
+            ear_offset (float): Offset from the speaker position to the ear microphone position, given in mm (method will auto fix unit to match phone dims).
+                                Default is 50.0 mm.
+        
+        """
+
+        h, w, d = self.phone_dimensions
+        orthogonal_speaker = np.array([h, w*0.5, d*0.0]) # Matches the top-middle speaker position (loudspeaker 2 [idx=1])
+        
+        ear_offset = ear_offset * self.unit_dict[self.unit]  # Convert to the same unit as the phone dimensions
+        relative_ear_mic_position = orthogonal_speaker + np.array([0, 0, -ear_offset])
+        
+        # Apply rotation to relative positions (relative to the phone center)
+        rotated_position = self.rotation_matrix @ (relative_ear_mic_position - self.phone_center)
+        global_position = rotated_position + self.position
+        
+        return global_position
     
     
     def get_mic_positions(self):
@@ -205,5 +231,5 @@ if __name__ == "__main__":
     # phone = PhoneSpeaker(np.array([0,0,0]))
     phone = Phone(np.array([20, 30, 40]), np.array([45,-90,0])) # pos in mm, orientation in degrees (roll, pitch, yaw)
     
-    print(phone.get_phone_info())
+    #print(phone.get_phone_info())
     phone.plot_phone(plot=True)
