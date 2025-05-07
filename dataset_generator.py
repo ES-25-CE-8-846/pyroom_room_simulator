@@ -93,10 +93,10 @@ class DatasetGenerator:
         room_params,
         regularizer: str,
         num_phone_pos: int = 1,
-        save_dir: Path = None,
+        save_dir: Path | None = None,
         dtype=np.float32,
         plot=False,
-        seed=None,
+        seed: int | None = None,
     ):
         """
         Simulate the room using the RoomSimulator class.
@@ -108,7 +108,7 @@ class DatasetGenerator:
         
         # Create the simulator
         simulator = RoomSimulator(seed=seed)
-
+        
         # Generate room
         simulator.compose_room(**room_params)
         if plot:
@@ -205,7 +205,7 @@ class DatasetGenerator:
         
         # Generate data for each split
         for split, params in self.splits.items():
-            logger.warning(f"Generating {split} split:\n - num_rooms={params["num_rooms"]}\n - num_phone_pos={params["num_phone_pos"]}")
+            logger.warning(f"Generating {split} split:\n - num_rooms={params['num_rooms']}\n - num_phone_pos={params['num_phone_pos']}")
             if allocated_threads > params["num_rooms"]: 
                 threads = params["num_rooms"]
                 logger.warning(f"Reducing number of threads for '{split}' split to {threads} to match number of rooms...")
@@ -272,16 +272,16 @@ def main():
         "room_params": {
             "fs": fs,
             "n_mics": 12, # number of microphones in the microphone circle, the amount of microphones for the phone cannot be changed and is fixed at 4 (ear=1, phone=3)
-            "mic_radius": 0.5,
+            "mic_radius": 0.5, # m
             "shape": "shoebox",  # "shoebox", "l_room", "t_room"
             "signal": signal,
             "room_bounds": {
-                "min_width": 3.0,
-                "max_width": 10.0,
-                "min_length": 3.0,
-                "max_length": 10.0,
-                "min_extrude": 2.0,
-                "max_extrude": 5.0,
+                "min_width": 3.0, # m
+                "max_width": 10.0, # m
+                "min_length": 3.0, # m
+                "max_length": 10.0, # m
+                "min_extrude": 2.0, # m
+                "max_extrude": 5.0, # m
             },
             # "desired_rt60": 0.5,
             "material_properties_bounds": {  #  # If desired_rt68 is None, this will be used
@@ -303,7 +303,7 @@ def main():
     import time
     start_time = time.time()
     #dataset_generator.start()
-    dataset_generator.start_mp(ultilization=0.75)  # 0.25 for 25% CPU utilization
+    dataset_generator.start_mp(ultilization=0.95)  # 0.25 for 25% CPU utilization
     end_time = time.time()
     print(f"Dataset generation took {end_time - start_time:.3f} seconds.")
 
