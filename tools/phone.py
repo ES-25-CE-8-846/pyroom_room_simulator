@@ -39,6 +39,8 @@ class Phone:
         # Generate speaker and microphone positions
         self.speaker_array = self._generate_speaker_positions()
         self.mic_array = self._generate_mic_positions()
+        # Compute the position of the ear microphone, which represents a virtual mic placed near the ear.
+        # This mic is intentionally inserted at the beginning of the mic_array for specific downstream processing.
         self.ear_mic = self._generate_ear_mic_position(ear_offset=50.0)
         self.mic_array = np.insert(self.mic_array, 0, self.ear_mic, axis=0)
         
