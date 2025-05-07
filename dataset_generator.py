@@ -225,7 +225,8 @@ class DatasetGenerator:
                 )
                 for i in range(params["num_rooms"])
             ]
-            
+            #try: print([x[6] for x in args_list[135:]])
+            #except: pass
             with mp.Pool(processes=threads) as pool:
                 results = pool.starmap(self.simulate_room, args_list) # starmap because we need to pass multiple arguments to the function
                 
@@ -253,7 +254,7 @@ def main():
 
     # Example usage
     dataset_params = {
-        "name": "run1",
+        "name": "run2",
         "root": Path("dataset"),
         "splits": {
             "train": {

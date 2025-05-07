@@ -85,13 +85,13 @@ class RoomSimulator:
                 room_bbox[0, 0] + mic_radius + 0.05, room_bbox[0, 1] - mic_radius - 0.05
             ),
             self.random_gen.uniform(
-                room_bbox[1, 0] + mic_radius, room_bbox[1, 1] - mic_radius
+                room_bbox[1, 0] + mic_radius + 0.05, room_bbox[1, 1] - mic_radius - 0.05
             ),
             self.random_gen.normal(loc=1.7, scale=0.1),
         ]
         # Check if the phone position is inside the room
         while (
-            self.phone_pos[2] < room_bbox[2, 0] or self.phone_pos[2] > room_bbox[2, 1]
+            self.phone_pos[2] < (room_bbox[2, 0] + 0.1) or self.phone_pos[2] > (room_bbox[2, 1] - 0.1)
         ):
             self.phone_pos[2] = self.random_gen.normal(loc=1.7, scale=0.1)
 
@@ -108,11 +108,28 @@ class RoomSimulator:
 
         room.add_microphone_array(bright_zone_mics.T)
 
-        for pos in phone_speakers:
-            # room.add_source(pos, signal=self.signal)
-            room.add_source(pos, signal=self.signal/len(phone_speakers))
-        logger.info(f"Added {len(phone_speakers)} speakers to the room!")
-
+        try:
+            for pos in phone_speakers:
+                # room.add_source(pos, signal=self.signal)
+                room.add_source(pos, signal=self.signal/len(phone_speakers))
+            logger.info(f"Added {len(phone_speakers)} speakers to the room!")
+        except:
+            
+            with open(f"crash_output_{self.seed}.txt", "w") as file:
+                file.write("-----room_bounds-----")
+                file.write(f"{room_bounds}")
+                file.write("-----room_bbox-----")
+                file.write(f"{room_bbox}")
+                file.write("-----phone_speakers-----")
+                file.write(f"{phone_speakers}")
+                file.write("-----pos-----")
+                file.write(f"{pos}")
+                file.write("-----bright_zone_mics.T-----")
+                file.write(f"{bright_zone_mics.T}")
+                file.write("-----dark_zone_mids.T")
+                file.write(f"{dark_zone_mics.T}")
+            assert True == False, f"Program crashed, check file: 'crash_output_{self.seed}.txt'"
+        
         # Set the room and its params
         self.room = room
         self.room_params = {
