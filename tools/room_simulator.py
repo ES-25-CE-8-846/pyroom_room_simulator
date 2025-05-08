@@ -108,27 +108,10 @@ class RoomSimulator:
 
         room.add_microphone_array(bright_zone_mics.T)
 
-        try:
-            for pos in phone_speakers:
-                # room.add_source(pos, signal=self.signal)
-                room.add_source(pos, signal=self.signal/len(phone_speakers))
-            logger.info(f"Added {len(phone_speakers)} speakers to the room!")
-        except:
-            
-            with open(f"crash_output_{self.seed}.txt", "w") as file:
-                file.write("-----room_bounds-----")
-                file.write(f"{room_bounds}")
-                file.write("-----room_bbox-----")
-                file.write(f"{room_bbox}")
-                file.write("-----phone_speakers-----")
-                file.write(f"{phone_speakers}")
-                file.write("-----pos-----")
-                file.write(f"{pos}")
-                file.write("-----bright_zone_mics.T-----")
-                file.write(f"{bright_zone_mics.T}")
-                file.write("-----dark_zone_mids.T")
-                file.write(f"{dark_zone_mics.T}")
-            assert True == False, f"Program crashed, check file: 'crash_output_{self.seed}.txt'"
+        for pos in phone_speakers:
+            # room.add_source(pos, signal=self.signal)
+            room.add_source(pos, signal=self.signal/len(phone_speakers))
+        logger.info(f"Added {len(phone_speakers)} speakers to the room!") 
         
         # Set the room and its params
         self.room = room

@@ -10,7 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 class DatasetGenerator:
-    def __init__(self, dataset_params: dict = None):
+    def __init__(self, dataset_params: dict | None = None):
         """
         Initialize the DatasetGenerator.
         """
@@ -192,15 +192,15 @@ class DatasetGenerator:
         logger.warning("Dataset generation completed!")
         
         
-    def start_mp(self, ultilization=0.25):
+    def start_mp(self, utilization=0.25):
         """
         Start the dataset generation process.
         """
-        minimum_ultilization = (1/mp.cpu_count())
-        assert ultilization > minimum_ultilization, f"Utilization must be greater than {minimum_ultilization:.3f} for your CPU to allocate atleast one thread!"
-        assert ultilization <= 1, "Utilization cannot be greater than 1!"
+        minimum_utilization = (1/mp.cpu_count())
+        assert utilization > minimum_utilization, f"Utilization must be greater than {minimum_utilization:.3f} for your CPU to allocate at least one thread!"
+        assert utilization <= 1, "Utilization cannot be greater than 1!"
         
-        allocated_threads = int(mp.cpu_count()*ultilization)
+        allocated_threads = int(mp.cpu_count()*utilization)
         logger.warning(f"Starting multiprocessed dataset generation with {allocated_threads}/{mp.cpu_count()} threads allocated...")
         
         # Generate data for each split
@@ -225,8 +225,7 @@ class DatasetGenerator:
                 )
                 for i in range(params["num_rooms"])
             ]
-            #try: print([x[6] for x in args_list[135:]])
-            #except: pass
+
             with mp.Pool(processes=threads) as pool:
                 results = pool.starmap(self.simulate_room, args_list) # starmap because we need to pass multiple arguments to the function
                 
@@ -281,11 +280,11 @@ def main():
                 "max_width": 10.0, # m
                 "min_length": 3.0, # m
                 "max_length": 10.0, # m
-                "min_extrude": 2.0, # m
-                "max_extrude": 5.0, # m
+                "min_extrude": 3.0, # m
+                "max_extrude": 6.0, # m
             },
             # "desired_rt60": 0.5,
-            "material_properties_bounds": {  #  # If desired_rt68 is None, this will be used
+            "material_properties_bounds": {  #  # If desired_rt60 is None, this will be used
                 "energy_absorption": (0.6, 0.9),
                 "scattering": (0.05, 0.1),
             },
@@ -304,7 +303,7 @@ def main():
     import time
     start_time = time.time()
     #dataset_generator.start()
-    dataset_generator.start_mp(ultilization=0.95)  # 0.25 for 25% CPU utilization
+    dataset_generator.start_mp(utilization=0.95)  # 0.25 for 25% CPU utilization
     end_time = time.time()
     print(f"Dataset generation took {end_time - start_time:.3f} seconds.")
 
