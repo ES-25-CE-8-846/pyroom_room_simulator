@@ -1,15 +1,16 @@
-import numpy as np
-from pathlib import Path
-from tools import RoomSimulator
 import yaml
 import logging
+import numpy as np
+import multiprocessing as mp
+from pathlib import Path
+from tools import RoomSimulator
 from copy import deepcopy
 
 logger = logging.getLogger(__name__)
 
 
 class DatasetGenerator:
-    def __init__(self, dataset_params: dict = None):
+    def __init__(self, dataset_params: dict | None = None):
         """
         Initialize the DatasetGenerator.
         """
@@ -86,21 +87,28 @@ class DatasetGenerator:
             yaml.dump(params_to_save, file)
         return True
 
+    # Must be a static method to be used in multiprocessing, thus no self
+    @staticmethod
     def simulate_room(
-        self,
         room_params,
+        regularizer: str,
         num_phone_pos: int = 1,
-        save_dir: Path = None,
+        save_dir: Path | None = None,
         dtype=np.float32,
         plot=False,
+        seed: int | None = None,
     ):
         """
         Simulate the room using the RoomSimulator class.
         """
-        simulator = RoomSimulator(seed=self.random_gen.integers(0, 10000))
-
-        room_config_dict = {"num_phone_pos": num_phone_pos}
-
+        assert regularizer in ["rt60", "maxlen"], "Regularizer must be either 'rt60' or 'maxlen'"
+        assert num_phone_pos > 0, "num_phone_pos must be greater than 0"
+        
+        logger.info(f"Simulating room with {num_phone_pos} phone positions...")
+        
+        # Create the simulator
+        simulator = RoomSimulator(seed=seed)
+        
         # Generate room
         simulator.compose_room(**room_params)
         if plot:
@@ -120,11 +128,11 @@ class DatasetGenerator:
             simulator.randomize_room()
 
             # Compute the RIRs and RT60 times then regularize them
-            if self.regularizer == "rt60":
+            if regularizer == "rt60":
                 rirs, rt60s = simulator.compute_rir(rt60=True)
                 reg_rirs = simulator.regularize_rir(rirs, rt60s, dtype=dtype)
 
-            elif self.regularizer == "maxlen":
+            elif regularizer == "maxlen":
                 rirs = simulator.compute_rir(rt60=False)
                 reg_rirs = simulator.regularize_rir(rirs, dtype=dtype)
 
@@ -140,9 +148,7 @@ class DatasetGenerator:
                 np.savez_compressed(save_path.absolute(), bz_rir=bz_rir, dz_rir=dz_rir)
                 logger.info(f"RIRs saved to {save_path.absolute()}")
 
-                room_config_dict["phone_positions"][
-                    f"pos_{i}"
-                ] = simulator.get_phone_pos()
+                room_config_dict["phone_positions"][f"pos_{i}"] = simulator.get_phone_pos()
 
         if save_dir is not None:
             config_path = save_dir / "room_config.yaml"
@@ -150,7 +156,8 @@ class DatasetGenerator:
                 yaml.dump(room_config_dict, file)
             logger.info(f"Saved room config to {config_path.absolute()}")
 
-        return simulator
+        return True  # Return True to indicate success
+
 
     def start(self):
         """
@@ -169,15 +176,60 @@ class DatasetGenerator:
 
                 self.simulate_room(
                     self.room_params,
+                    regularizer=self.regularizer,
                     num_phone_pos=params["num_phone_pos"],
                     save_dir=save_dir,
                     dtype=self.dtype,
                     plot=False,
-                    # seed=self.seed,
+                    seed=self.random_gen.integers(0, 10000),
                 )
                 logger.warning(
                     f"Successfully generated room {i+1}/{params['num_rooms']}!"
                 )
+
+            logger.warning(f"Successfully generated {split} split!")
+
+        logger.warning("Dataset generation completed!")
+        
+        
+    def start_mp(self, utilization=0.25):
+        """
+        Start the dataset generation process.
+        """
+        minimum_utilization = (1/mp.cpu_count())
+        assert utilization > minimum_utilization, f"Utilization must be greater than {minimum_utilization:.3f} for your CPU to allocate at least one thread!"
+        assert utilization <= 1, "Utilization cannot be greater than 1!"
+        
+        allocated_threads = int(mp.cpu_count()*utilization)
+        logger.warning(f"Starting multiprocessed dataset generation with {allocated_threads}/{mp.cpu_count()} threads allocated...")
+        
+        # Generate data for each split
+        for split, params in self.splits.items():
+            logger.warning(f"Generating {split} split:\n - num_rooms={params['num_rooms']}\n - num_phone_pos={params['num_phone_pos']}")
+            if allocated_threads > params["num_rooms"]: 
+                threads = params["num_rooms"]
+                logger.warning(f"Reducing number of threads for '{split}' split to {threads} to match number of rooms...")
+            else:
+                threads = allocated_threads
+
+            # Generate rooms dataset
+            args_list = [
+                (
+                    self.room_params,
+                    self.regularizer,
+                    params["num_phone_pos"],
+                    self.root / split / f"room_{i}",
+                    self.dtype,
+                    False,
+                    self.random_gen.integers(0, 10000),
+                )
+                for i in range(params["num_rooms"])
+            ]
+
+            with mp.Pool(processes=threads) as pool:
+                results = pool.starmap(self.simulate_room, args_list) # starmap because we need to pass multiple arguments to the function
+                
+            assert all(results), "One or more room simulations failed!"
 
             logger.warning(f"Successfully generated {split} split!")
 
@@ -201,38 +253,38 @@ def main():
 
     # Example usage
     dataset_params = {
-        "name": "run1",
+        "name": "run2",
         "root": Path("dataset"),
         "splits": {
             "train": {
-                "num_rooms": 10,
+                "num_rooms": 150,
                 "num_phone_pos": 10,
             },
             "val": {
-                "num_rooms": 5,
+                "num_rooms": 50,
                 "num_phone_pos": 10,
             },
             "test": {
-                "num_rooms": 5,
+                "num_rooms": 50,
                 "num_phone_pos": 10,
             },
         },
         "room_params": {
             "fs": fs,
-            "n_mics": 12,
-            "mic_radius": 0.5,
+            "n_mics": 12, # number of microphones in the microphone circle, the amount of microphones for the phone cannot be changed and is fixed at 4 (ear=1, phone=3)
+            "mic_radius": 0.5, # m
             "shape": "shoebox",  # "shoebox", "l_room", "t_room"
             "signal": signal,
             "room_bounds": {
-                "min_width": 3.0,
-                "max_width": 10.0,
-                "min_length": 3.0,
-                "max_length": 10.0,
-                "min_extrude": 2.0,
-                "max_extrude": 5.0,
+                "min_width": 3.0, # m
+                "max_width": 10.0, # m
+                "min_length": 3.0, # m
+                "max_length": 10.0, # m
+                "min_extrude": 3.0, # m
+                "max_extrude": 6.0, # m
             },
             # "desired_rt60": 0.5,
-            "material_properties_bounds": {  #  # If desired_rt68 is None, this will be used
+            "material_properties_bounds": {  #  # If desired_rt60 is None, this will be used
                 "energy_absorption": (0.6, 0.9),
                 "scattering": (0.05, 0.1),
             },
@@ -244,11 +296,16 @@ def main():
         },
         "regularizer": "rt60",
         "dtype": np.float32,
-        "seed": 69,
+        "seed": 42,
     }
 
     dataset_generator = DatasetGenerator(dataset_params)
-    dataset_generator.start()
+    import time
+    start_time = time.time()
+    #dataset_generator.start()
+    dataset_generator.start_mp(utilization=0.95)  # 0.25 for 25% CPU utilization
+    end_time = time.time()
+    print(f"Dataset generation took {end_time - start_time:.3f} seconds.")
 
 
 if __name__ == "__main__":
