@@ -1,5 +1,4 @@
 import numpy as np
-import pyroomacoustics as pra
 from tools import RoomGenerator
 from tools import MicrophoneCircle
 from tools import Phone
@@ -12,7 +11,7 @@ logger = logging.getLogger(__name__)
 class RoomSimulator:
     def __init__(
         self,
-        seed: int = None,
+        seed: int | None = None,
     ):
         """Simulate room :)
 
@@ -33,13 +32,11 @@ class RoomSimulator:
         phone_rotation: np.ndarray = np.array([0, -90, 0]),
         signal: np.ndarray | None = None,
         shape: str = "shoebox",
-        desired_rt60: float = None,
-        material_properties_bounds: dict = None,
-        ray_tracing_params: dict = None,
+        desired_rt60: float | None = None,
+        material_properties_bounds: dict | None = None,
+        ray_tracing_params: dict | None = None,
         generate_new_room: bool = True,
-        room_bounds: dict = None,
-        *args,
-        **kwargs,
+        room_bounds: dict | None = None,
     ):
         """Generate a room with Phone and Microphone Circle
             Sets the `self.room` and `self.room_dims` variables
@@ -85,16 +82,16 @@ class RoomSimulator:
         room_bbox = room.get_bbox()  # in m
         self.phone_pos = [
             self.random_gen.uniform(
-                room_bbox[0, 0] + mic_radius, room_bbox[0, 1] - mic_radius
+                room_bbox[0, 0] + mic_radius + 0.05, room_bbox[0, 1] - mic_radius - 0.05
             ),
             self.random_gen.uniform(
-                room_bbox[1, 0] + mic_radius, room_bbox[1, 1] - mic_radius
+                room_bbox[1, 0] + mic_radius + 0.05, room_bbox[1, 1] - mic_radius - 0.05
             ),
             self.random_gen.normal(loc=1.7, scale=0.1),
         ]
         # Check if the phone position is inside the room
         while (
-            self.phone_pos[2] < room_bbox[2, 0] or self.phone_pos[2] > room_bbox[2, 1]
+            self.phone_pos[2] < (room_bbox[2, 0] + 0.1) or self.phone_pos[2] > (room_bbox[2, 1] - 0.1)
         ):
             self.phone_pos[2] = self.random_gen.normal(loc=1.7, scale=0.1)
 
@@ -114,8 +111,8 @@ class RoomSimulator:
         for pos in phone_speakers:
             # room.add_source(pos, signal=self.signal)
             room.add_source(pos, signal=self.signal/len(phone_speakers))
-        logger.info(f"Added {len(phone_speakers)} speakers to the room!")
-
+        logger.info(f"Added {len(phone_speakers)} speakers to the room!") 
+        
         # Set the room and its params
         self.room = room
         self.room_params = {
@@ -175,7 +172,7 @@ class RoomSimulator:
         # If RT60 is not requested, return only the RIRs
         return self.room.rir  # [mic, source, samples]
 
-    def get_zones(self, rirs, rt60=None):
+    def get_zones(self, rirs, rt60: list | None = None):
         """Splits the RIRs into dark and bright zones and RT60 times if passed.
 
         Args:
@@ -204,7 +201,7 @@ class RoomSimulator:
             dz_rir,
         )  # TODO: Should this also return a second (None, None) tuple?
 
-    def regularize_rir(self, rirs, rt60=None, dtype=np.float64):
+    def regularize_rir(self, rirs, rt60: list | None = None, dtype=np.float64):
         """Regularize the RIR by cutting it to the longest RIR length or RT60 time if defined.
 
         Args:
