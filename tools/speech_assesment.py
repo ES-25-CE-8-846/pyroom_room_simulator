@@ -17,6 +17,18 @@ def plot(waveform, title, sample_rate=16000):
     figure.suptitle(title)
 
 def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, plot=False):
+    """
+    Prints the estimated metrics (STOI, PESQ, MOS) for the original and filtered signals using the SQUIM model.
+
+    Input:
+    Dry_sound: Path to the dry sound file
+    SAMPLE_BZ: Path to the bright mic filtered sound file
+    SAMPLE_DZ: Path to the dark mic filtered sound file
+    Original_BZ: Path to the bright mic original sound file
+    Original_DZ: Path to the dark mic original sound file
+    plot: Boolean to plot the waveforms
+
+    """
     WAVEFORM_DRY, SAMPLE_RATE_DRY = torchaudio.load(Dry_sound)
     WAVEFORM_BZ, SAMPLE_RATE_BZ = torchaudio.load(SAMPLE_BZ)
     WAVEFORM_DZ, SAMPLE_RATE_DZ = torchaudio.load(SAMPLE_DZ)
