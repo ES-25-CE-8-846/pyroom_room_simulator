@@ -20,6 +20,8 @@ let
         numpy
         scipy
         pybind11
+        torch
+        torchaudio
       ];
       doCheck = false;
     };
