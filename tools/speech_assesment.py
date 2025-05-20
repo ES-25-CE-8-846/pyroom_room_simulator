@@ -5,6 +5,7 @@ from pesq import pesq
 from pystoi import stoi
 from torchaudio.pipelines import SQUIM_OBJECTIVE, SQUIM_SUBJECTIVE
 import torchaudio.functional as F
+import numpy as np
 
 def plot(waveform, title, sample_rate=16000):
     wav_numpy = waveform.numpy()
@@ -15,6 +16,36 @@ def plot(waveform, title, sample_rate=16000):
     axes[0].grid(True)
     axes[1].specgram(wav_numpy[0], Fs=sample_rate)
     figure.suptitle(title)
+
+def evaluate_stoi_pesq(signal, dry_signal, sample_rate=16000):
+    """
+    Evaluates the STOI and PESQ metrics for the given signal against the dry signal.
+
+    Input:
+    signal: The signal to evaluate
+    dry_signal: The dry reference signal
+    sample_rate: The sample rate of the signals
+
+    Returns:
+    stoi: The STOI score
+    pesq: The PESQ score
+    """
+    # Convert to numpy and flatten to 1D
+    if isinstance(signal, torch.Tensor):
+        signal = signal.squeeze().numpy()
+    if isinstance(dry_signal, torch.Tensor):
+        dry_signal = dry_signal.squeeze().numpy()
+
+    # Make sure they're 1D
+    signal = signal.flatten()
+    dry_signal = dry_signal.flatten()
+
+    # Calculate STOI and PESQ
+    stoi_score = stoi(dry_signal, signal, fs_sig=sample_rate)
+    pesq_score = pesq(sample_rate, dry_signal, signal)
+
+    return stoi_score, pesq_score
+
 
 def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, plot=False):
     """
@@ -70,7 +101,7 @@ def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, 
         plt.show()
 
     # ML-predicted metrics (subjective-ish)
-    objective_model = SQUIM_OBJECTIVE.get_model() # TODO: CALCULATE THIS WITHOUT SQUIM
+    objective_model = SQUIM_OBJECTIVE.get_model()
     subjective_model = SQUIM_SUBJECTIVE.get_model()
 
     # Original DZ
@@ -81,6 +112,10 @@ def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, 
     print(f"PESQ: {pesq_dz[0]:.3f}")
     print(f"MOS: {dz_mos[0]:.3f}")
     #print(f"SI-SDR: {si_sdr_dz[0]:.3f}")
+    stoi_dz, pesq_dz = evaluate_stoi_pesq(Original_DZ, WAVEFORM_DRY)
+    print("STOI and PESQ for original DZ:")
+    print(f"STOI: {stoi_dz:.3f}")
+    print(f"PESQ: {pesq_dz:.3f}")
 
     # Filtered DZ
     stoi_dz, pesq_dz, si_sdr_dz = objective_model(WAVEFORM_DZ[0:1, :])
@@ -90,6 +125,10 @@ def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, 
     print(f"PESQ: {pesq_dz[0]:.3f}")
     print(f"MOS: {dz_mos[0]:.3f}")
     #print(f"SI-SDR: {si_sdr_dz[0]:.3f}")
+    stoi_dz, pesq_dz = evaluate_stoi_pesq(WAVEFORM_DZ, WAVEFORM_DRY)
+    print("STOI and PESQ for filtered DZ:")
+    print(f"STOI: {stoi_dz:.3f}")
+    print(f"PESQ: {pesq_dz:.3f}")
 
     # Original BZ
     stoi_bz, pesq_bz, si_sdr_bz = objective_model(Original_BZ[0:1, :])
@@ -99,6 +138,10 @@ def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, 
     print(f"PESQ: {pesq_bz[0]:.3f}")
     print(f"MOS: {bz_mos[0]:.3f}")
     #print(f"SI-SDR: {si_sdr_bz[0]:.3f}")
+    stoi_bz, pesq_bz = evaluate_stoi_pesq(Original_BZ, WAVEFORM_DRY)
+    print("STOI and PESQ for original BZ:")
+    print(f"STOI: {stoi_bz:.3f}")
+    print(f"PESQ: {pesq_bz:.3f}")
     
     # Filtered BZ
     stoi_bz, pesq_bz, si_sdr_bz = objective_model(WAVEFORM_BZ[0:1, :]) # TODO: Ensure this works
@@ -108,16 +151,20 @@ def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, 
     print(f"PESQ: {pesq_bz[0]:.3f}")
     print(f"MOS: {bz_mos[0]:.3f}")
     #print(f"SI-SDR: {si_sdr_bz[0]:.3f}")
+    stoi_bz, pesq_bz = evaluate_stoi_pesq(WAVEFORM_BZ, WAVEFORM_DRY)
+    print("STOI and PESQ for filtered BZ:")
+    print(f"STOI: {stoi_bz:.3f}")
+    print(f"PESQ: {pesq_bz:.3f}")
 
 
 
 if __name__ == "__main__":
     # Load the audio files
-    Dry_sound = r"Path\to\your\dry_sound.wav"  # Replace with the path to your dry sound file
-    SAMPLE_BZ = r"Path\to\your\bright_mic_filtered.wav"  # Replace with the path to your bright mic filtered sound file
-    SAMPLE_DZ = r"Path\to\your\dark_mic_filtered.wav"  # Replace with the path to your dark mic filtered sound file
-    Original_BZ = r"Path\to\your\bright_mic_original.wav"  # Replace with the path to your bright mic original sound file
-    Original_DZ = r"Path\to\your\dark_mic_original.wav"  # Replace with the path to your dark mic original sound file
+    Dry_sound = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\wav_files\relaxing-guitar-loop-v5-245859.wav"  # Replace with the path to your dry sound file
+    SAMPLE_BZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\bright_mic_filtered.wav"  # Replace with the path to your bright mic filtered sound file
+    SAMPLE_DZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\dark_mic_filtered.wav"  # Replace with the path to your dark mic filtered sound file
+    Original_BZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\bright_mic_original.wav"  # Replace with the path to your bright mic original sound file
+    Original_DZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\dark_mic_original.wav"  # Replace with the path to your dark mic original sound file
 
     # Evaluate the signals
     evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ)
