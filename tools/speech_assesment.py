@@ -157,14 +157,14 @@ def evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ, 
     print(f"PESQ: {pesq_bz:.3f}")
 
 
-
+# Example usage
 if __name__ == "__main__":
     # Load the audio files
-    Dry_sound = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\wav_files\relaxing-guitar-loop-v5-245859.wav"  # Replace with the path to your dry sound file
-    SAMPLE_BZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\bright_mic_filtered.wav"  # Replace with the path to your bright mic filtered sound file
-    SAMPLE_DZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\dark_mic_filtered.wav"  # Replace with the path to your dark mic filtered sound file
-    Original_BZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\bright_mic_original.wav"  # Replace with the path to your bright mic original sound file
-    Original_DZ = r"C:\Users\William\Desktop\Uni\P8\Git\pyroom_room_simulator\dark_mic_original.wav"  # Replace with the path to your dark mic original sound file
+    Dry_sound = r"relaxing-guitar-loop-v5-245859.wav"  # Replace with the path to your dry sound file
+    SAMPLE_BZ = r"bright_mic_filtered.wav"  # Replace with the path to your bright mic filtered sound file
+    SAMPLE_DZ = r"dark_mic_filtered.wav"  # Replace with the path to your dark mic filtered sound file
+    Original_BZ = r"bright_mic_original.wav"  # Replace with the path to your bright mic original sound file
+    Original_DZ = r"dark_mic_original.wav"  # Replace with the path to your dark mic original sound file
 
     # Evaluate the signals
     evaluate_signals(Dry_sound, SAMPLE_BZ, SAMPLE_DZ, Original_BZ, Original_DZ)
