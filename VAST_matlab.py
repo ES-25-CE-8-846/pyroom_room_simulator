@@ -230,8 +230,8 @@ def main():
     ##########################
     
     # Generate VAST filters
-    J = 2048 # Filter length
-    mu = 1.0 # Importance on DZ power minimization
+    J = 4096 # Filter length
+    mu = 0.1 # Importance on DZ power minimization
     reg_param = 1e-5 # Regularization parameter
     filter_path = Path(f"filters/vast_filters_{J}_{mu}_{reg_param}.npz")
     if filter_path.exists():
@@ -261,93 +261,94 @@ def main():
     ac = acc_evaluation(filter_eval, deepcopy(bz_rir_eval), deepcopy(dz_rir_eval))
     print(f"AC for dirac delta filter:", ac)
     
-    # # Plot the filters
-    # for name in ["q_acc", "q_vast", "q_pm"]:
-    #     if filters[name] is not None:
-    #         print(f"{name} filter shape:", filters[name].shape)
-    #         plot_filters(filters[name], name)
+    # Plot the filters
+    for name in ["q_acc", "q_vast", "q_pm"]:
+        if filters[name] is not None:
+            print(f"{name} filter shape:", filters[name].shape)
+            plot_filters(filters[name], name)
         
     
-    # # I do something with the filters
-    # room_sim.room.image_source_model()
-    # print("Simulating room acoustics...")
-    # room_sim.room.simulate()
-    # print("Simulation complete")
+    # I do something with the filters
+    room_sim.room.image_source_model()
+    print("Simulating room acoustics...")
+    room_sim.room.simulate()
+    print("Simulation complete")
     
-    # original_mic_signals = room_sim.room.mic_array.signals  # shape: [num_mics, signal_len]
+    original_mic_signals = room_sim.room.mic_array.signals  # shape: [num_mics, signal_len]
     
-    # # Make a global scaling factor to avoid clipping when saving to WAV
-    # #global_scaling_factor = np.max(np.abs(original_mic_signals)) + 1e-8  # Avoid division by zero
-    # original_bright_mic_signal = original_mic_signals[room_params["n_mics"]]*signal_norm_gain#/global_scaling_factor  # First bright mic
-    # original_dark_mic_signal = original_mic_signals[0]*signal_norm_gain#/global_scaling_factor  # First dark mic
+    # Make a global scaling factor to avoid clipping when saving to WAV
+    #global_scaling_factor = np.max(np.abs(original_mic_signals)) + 1e-8  # Avoid division by zero
+    original_bright_mic_signal = original_mic_signals[room_params["n_mics"]]*signal_norm_gain#/global_scaling_factor  # First bright mic
+    original_dark_mic_signal = original_mic_signals[0]*signal_norm_gain#/global_scaling_factor  # First dark mic
     
-    # # Save original mic signals to WAV files
-    # os.remove("bright_mic_original.wav") if os.path.exists("bright_mic_original.wav") else None
-    # os.remove("dark_mic_original.wav") if os.path.exists("dark_mic_original.wav") else None
-    # wavfile.write("bright_mic_original.wav", fs, original_bright_mic_signal)
-    # wavfile.write("dark_mic_original.wav", fs, original_dark_mic_signal)
+    # Save original mic signals to WAV files
+    os.remove("bright_mic_original.wav") if os.path.exists("bright_mic_original.wav") else None
+    os.remove("dark_mic_original.wav") if os.path.exists("dark_mic_original.wav") else None
+    wavfile.write("bright_mic_original.wav", fs, original_bright_mic_signal)
+    wavfile.write("dark_mic_original.wav", fs, original_dark_mic_signal)
 
-    # import matplotlib.pyplot as plt
-    # plt.figure(figsize=(12, 6))
-    # plt.plot(original_bright_mic_signal, label="Bright Zone Mic 1 Signal")
-    # plt.plot(original_dark_mic_signal, label="Dark Zone Mic 1 Signal")
-    # plt.title("Signal Comparison Between original Bright and Dark Zone Mics")
-    # plt.xlabel("Time")
-    # plt.ylabel("Amplitude")
-    # plt.legend()
-    # plt.savefig(r"results/original_bright_dark_zone_comparison.png")
-    # #plt.show()
+    import matplotlib.pyplot as plt
+    os.makedirs("results", exist_ok=True)
+    plt.figure(figsize=(12, 6))
+    plt.plot(original_bright_mic_signal, label="Bright Zone Mic 1 Signal")
+    plt.plot(original_dark_mic_signal, label="Dark Zone Mic 1 Signal")
+    plt.title("Signal Comparison Between original Bright and Dark Zone Mics")
+    plt.xlabel("Time")
+    plt.ylabel("Amplitude")
+    plt.legend()
+    plt.savefig(r"results/original_bright_dark_zone_comparison.png")
+    #plt.show()
     
-    # # Convolve the original mic signals with the RIRs to get the filtered signals
-    # filtered_signals = []
-    # for filter in filters["q_vast"]:
-    #     filtered_signal = fftconvolve(signal, filter)[:len(signal)]
-    #     filtered_signals.append(filtered_signal)
+    # Convolve the original mic signals with the RIRs to get the filtered signals
+    filtered_signals = []
+    for filter in filters["q_vast"]:
+        filtered_signal = fftconvolve(signal, filter)[:len(signal)]
+        filtered_signals.append(filtered_signal)
     
-    # # Inject filtered signals into room
-    # for i, src in enumerate(room_sim.room.sources):
-    #     src.signal = filtered_signals[i]
+    # Inject filtered signals into room
+    for i, src in enumerate(room_sim.room.sources):
+        src.signal = filtered_signals[i]
         
-    # print("Simulating room with filtered signal...")
-    # room_sim.room.simulate()
-    # print("Simulation done")
+    print("Simulating room with filtered signal...")
+    room_sim.room.simulate()
+    print("Simulation done")
     
-    # filtered_mic_signals = room_sim.room.mic_array.signals  # shape: [num_mics, signal_len]
-    # filtered_bright_mic_signal = filtered_mic_signals[room_params["n_mics"]]*signal_norm_gain# / global_scaling_factor  # First bright mic
-    # filtered_dark_mic_signal = filtered_mic_signals[0]*signal_norm_gain# / global_scaling_factor  # First dark mic
+    filtered_mic_signals = room_sim.room.mic_array.signals  # shape: [num_mics, signal_len]
+    filtered_bright_mic_signal = filtered_mic_signals[room_params["n_mics"]]*signal_norm_gain# / global_scaling_factor  # First bright mic
+    filtered_dark_mic_signal = filtered_mic_signals[0]*signal_norm_gain# / global_scaling_factor  # First dark mic
     
-    # # Compare the filtered signals from bright and dark zone
-    # plt.figure(figsize=(12, 6))
-    # plt.plot(filtered_bright_mic_signal, label="Bright Zone Mic 1 Signal", alpha=0.9)
-    # plt.plot(filtered_dark_mic_signal, label="Dark Zone Mic 1 Signal", alpha=0.9)
-    # plt.title("Signal Comparison Between Bright and Dark Zone Mics after VAST")
-    # plt.xlabel("Time")
-    # plt.ylabel("Amplitude")
-    # plt.legend()
-    # plt.savefig(r"results/filtered_bright_dark_zone_comparison.png")
+    # Compare the filtered signals from bright and dark zone
+    plt.figure(figsize=(12, 6))
+    plt.plot(filtered_bright_mic_signal, label="Bright Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(filtered_dark_mic_signal, label="Dark Zone Mic 1 Signal", alpha=0.9)
+    plt.title("Signal Comparison Between Bright and Dark Zone Mics after VAST")
+    plt.xlabel("Time")
+    plt.ylabel("Amplitude")
+    plt.legend()
+    plt.savefig(r"results/filtered_bright_dark_zone_comparison.png")
 
-    # #
-    # plt.figure(figsize=(12, 6))
-    # plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal", alpha=0.9)
-    # plt.plot(filtered_bright_mic_signal, label="Filtered Bright Zone Mic 1 Signal", alpha=0.9)
-    # plt.title("Signal Comparison Between original Bright and Filtered Bright Zone Mics")
-    # plt.xlabel("Time")
-    # plt.ylabel("Amplitude")
-    # plt.legend()
-    # plt.savefig(r"results/bright_zone_comparison.png")
+    #
+    plt.figure(figsize=(12, 6))
+    plt.plot(original_bright_mic_signal, label="Original Bright Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(filtered_bright_mic_signal, label="Filtered Bright Zone Mic 1 Signal", alpha=0.9)
+    plt.title("Signal Comparison Between original Bright and Filtered Bright Zone Mics")
+    plt.xlabel("Time")
+    plt.ylabel("Amplitude")
+    plt.legend()
+    plt.savefig(r"results/bright_zone_comparison.png")
 
-    # plt.figure(figsize=(12, 6))
-    # plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal", alpha=0.9)
-    # plt.plot(filtered_dark_mic_signal, label="Filtered Dark Zone Mic 1 Signal", alpha=0.9)
-    # plt.title("Signal Comparison Between original Dark and Filtered Dark Zone Mics")
-    # plt.xlabel("Time")
-    # plt.ylabel("Amplitude")
-    # plt.legend()
-    # plt.savefig(r"results/dark_zone_comparison.png")
+    plt.figure(figsize=(12, 6))
+    plt.plot(original_dark_mic_signal, label="Original Dark Zone Mic 1 Signal", alpha=0.9)
+    plt.plot(filtered_dark_mic_signal, label="Filtered Dark Zone Mic 1 Signal", alpha=0.9)
+    plt.title("Signal Comparison Between original Dark and Filtered Dark Zone Mics")
+    plt.xlabel("Time")
+    plt.ylabel("Amplitude")
+    plt.legend()
+    plt.savefig(r"results/dark_zone_comparison.png")
     
-    # # Save to WAV
-    # wavfile.write("bright_mic_filtered.wav", fs, filtered_bright_mic_signal)
-    # wavfile.write("dark_mic_filtered.wav", fs, filtered_dark_mic_signal)
+    # Save to WAV
+    wavfile.write("bright_mic_filtered.wav", fs, filtered_bright_mic_signal)
+    wavfile.write("dark_mic_filtered.wav", fs, filtered_dark_mic_signal)
 
 if __name__ == "__main__":
     main()
