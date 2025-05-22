@@ -10,56 +10,6 @@ from tqdm import tqdm
 from copy import deepcopy
 logger = logging.getLogger(__name__)
 
-def ac_evaluation(filters, bz_rirs, dz_rirs, plot=False):
-    """Function to compute the ac
-    Args:
-        filters (torch.Tensor): the filters as a torch tensor shape (B, L, K) (batch, loudspeakers, filter coefficients)
-        bz_rirs (torch.Tensor): the bright zone room impulse responses shape (B, M, L, N) (batch, mics, loudspeakers, rir length)
-            n speakers, n microphones, impulse responses length
-        dz_rirs (torch.Tensor): the dark zone room impulse responses shape (B, M, L, N)
-            n speakers, n microphones, impulse responses length
-    Returns:
-        ac (float): the acoustic contrast
-    """
-
-    filters = filters[:,np.newaxis, :, :]
-
-    # convolve filters with bz rirs
-    filter_bz = np.sum(
-        sps.fftconvolve(filters, bz_rirs, axes=3), axis=2, keepdims=True
-    )
-    filter_dz = np.sum(
-        sps.fftconvolve(filters, dz_rirs, axes=3), axis=2, keepdims=True
-    )
-
-    if plot:
-        # print("ac shapes")
-        # print(bz_rirs.shape)
-        # print(filter_dz.shape)
-        # print(filter_bz[0,:,0,:].shape)
-        # print("-------")
-        plot_filters(filters=filter_bz[0,:,0,:], name="fft(filter,rir) for bz")
-        plot_filters(filters=filter_dz[0,:,0,:], name="fft(filter,rir) dz")
-
-    # compute rfft for bz and dz
-    h_b = scipy.fft.rfftn(filter_bz, axes=3)
-    h_d = scipy.fft.rfftn(filter_dz, axes=3)
-
-    m_b = h_b.shape[2]
-    m_d = h_d.shape[2]
-
-    # Compute total energy
-    E_b = np.sum(np.abs(h_b) ** 2)
-    E_d = np.sum(np.abs(h_d) ** 2)
-
-    # Compute acoustic contrast
-    ac = 10 * np.log10((m_d * E_b) / (m_b * E_d))
-
-    # compute mean across batch
-    ac = np.mean(ac)
-
-    # print(f"acc {acc}, acc_shape {acc.shape}, m_b {m_b}, m_d {m_d}")
-    return ac
 
 def convmtx(h, n):
     h = np.asarray(h).flatten()
@@ -193,7 +143,6 @@ def VAST(BZ_rirs, DZ_rirs, fs=48_000, J=1024, mu=1.0, reg_param=1e-5, acc=True, 
     if vast:
         logger.info("Calculating VAST filter...")
         vast_rank = int(np.ceil(L*J/8)) # CHANGE THIS TO SELECT THE RANK OF VAST, 1 \leq vast_rank \leq L*J
-        #print("VAST rank:", vast_rank)
         q_vast = fit_vast(rank=vast_rank, mu=mu, r_B=r_B, eig_vec=eig_vec, eig_val_vec=eig_val)
     else: q_vast = None
     
@@ -216,27 +165,15 @@ def VAST(BZ_rirs, DZ_rirs, fs=48_000, J=1024, mu=1.0, reg_param=1e-5, acc=True, 
     }
 
 
-def plot_filters(filters: np.ndarray, name: str):
-    """Plot the filters in a grid of subplots."""
-    import matplotlib.pyplot as plt
-    fig, ax = plt.subplots(1, filters.shape[0], figsize=(15, 5))
-    for n, filter in enumerate(filters):
-        #print(f"Filter {n+1} shape:", filter.shape)
-        ax[n].plot(filter)
-        ax[n].set_title(f"{name} filter {n+1}")
-        ax[n].set_xlabel("Samples")
-        ax[n].set_ylabel("Amplitude")
-    fig.suptitle(f"{name} filters")
-    plt.tight_layout()
-    plt.show()
-
-
-
 def main():
+
+    # Define range to compute
+    low = 0
+    high = 1000
 
     # Load rirs
     rirs_root = Path(f"{__file__}").parent / "dataset" / "shoebox" / "run1_sparse" / "test"
-    rirs_paths = sorted(list(rirs_root.rglob("room_*/*.npz")))
+    rirs_paths = sorted(list(rirs_root.rglob("room_*/0000.npz")))[low:high]
     
     # log which filters have been processed
     with open(rirs_root / "processed_filters.txt", "w") as file:
@@ -248,7 +185,6 @@ def main():
     mu = 1.0 # Importance on DZ power minimization
     reg_param = 1e-5 # Regularization parameter
     fs = 44100 # Sampling frequency
-    plot_filt = True
 
     for rirs_path in tqdm(rirs_paths):
         rirs_dict = np.load(rirs_path)
@@ -267,24 +203,6 @@ def main():
             filters = VAST(bz_rir, dz_rir, fs=fs, J=J, mu=mu, reg_param=reg_param)
             os.makedirs(filter_path.parent, exist_ok=True)
             np.savez_compressed(filter_path, q_acc=filters["q_acc"], q_vast=filters["q_vast"], q_pm=filters["q_pm"])
-
-        # Calculate the acoustic contrast
-        print(f"filters shape:", filters["q_acc"].shape)
-        bz_rir_eval = bz_rir[np.newaxis, :, :, :] # Reshaping to match nn output which has batches
-        dz_rir_eval = dz_rir[np.newaxis, :, :, :]
-        for name in ["q_acc", "q_vast", "q_pm"]:
-            if filters[name] is not None:
-                filter_eval = filters[name][np.newaxis, :, :]
-                ac = ac_evaluation(filter_eval, deepcopy(bz_rir_eval), deepcopy(dz_rir_eval))
-                print(f"AC for {name} filter:", ac)
-                if plot_filt: plot_filters(filters=filters[name], name=name)
-        
-        # Use dirac delta filter as comparison
-        filter_eval = np.zeros_like(filter_eval)
-        filter_eval[0, :, 0] = 1.0
-        ac = ac_evaluation(filter_eval, deepcopy(bz_rir_eval), deepcopy(dz_rir_eval))
-        print(f"AC for dirac delta filter:", ac)
-        if plot_filt: plot_filters(filters=filter_eval[0,:], name="dirac")
 
 
 if __name__ == "__main__":

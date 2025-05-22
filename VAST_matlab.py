@@ -150,9 +150,9 @@ def VAST(BZ_rirs, DZ_rirs, fs=48_000, J=1024, mu=1.0, reg_param=1e-5, acc=True, 
     
     logger.info("VAST filters calculated successfully!")
     return { # Dictionary to store the filters, reshape them into filters for each source
-        "q_acc": np.reshape(q_acc, (J, L)).T if q_acc is not None else None,
-        "q_vast": np.reshape(q_vast, (J, L)).T if q_vast is not None else None,
-        "q_pm": np.reshape(q_pm, (J, L)).T if q_pm is not None else None,
+        "q_acc": np.reshape(q_acc, (L, J)) if q_acc is not None else None,
+        "q_vast": np.reshape(q_vast, (L, J)) if q_vast is not None else None,
+        "q_pm": np.reshape(q_pm, (L, J)) if q_pm is not None else None,
         "config": {
             "fs": fs,
             "J": J,
@@ -189,7 +189,7 @@ def main():
         signal = np.mean(signal, axis=1)  # Average channels to convert to mono
     #signal = signal / np.max(np.abs(signal) + 1e-8)  # Normalize
     
-    target_gain = 0.5  # Target gain for the signal
+    target_gain = 0.90  # Target gain for the signal
     signal_norm_gain = target_gain / np.sqrt(np.mean(signal**2))  # Calculate the normalization gain
     signal = signal * signal_norm_gain  # Apply the normalization gain to the signal
 
@@ -230,8 +230,8 @@ def main():
     ##########################
     
     # Generate VAST filters
-    J = 4096 # Filter length
-    mu = 0.1 # Importance on DZ power minimization
+    J = 2048 # Filter length
+    mu = 1.0 # Importance on DZ power minimization
     reg_param = 1e-5 # Regularization parameter
     filter_path = Path(f"filters/vast_filters_{J}_{mu}_{reg_param}.npz")
     if filter_path.exists():
@@ -257,7 +257,7 @@ def main():
         
     # For dirac delta filter
     filter_eval = np.zeros_like(filter_eval)
-    filter_eval[0, 0, 0] = 1.0
+    filter_eval[0, :, int(np.ceil(J/2))] = 1.0
     ac = acc_evaluation(filter_eval, deepcopy(bz_rir_eval), deepcopy(dz_rir_eval))
     print(f"AC for dirac delta filter:", ac)
     
@@ -276,19 +276,20 @@ def main():
     
     original_mic_signals = room_sim.room.mic_array.signals  # shape: [num_mics, signal_len]
     
+    os.makedirs("results", exist_ok=True)
     # Make a global scaling factor to avoid clipping when saving to WAV
     #global_scaling_factor = np.max(np.abs(original_mic_signals)) + 1e-8  # Avoid division by zero
     original_bright_mic_signal = original_mic_signals[room_params["n_mics"]]*signal_norm_gain#/global_scaling_factor  # First bright mic
     original_dark_mic_signal = original_mic_signals[0]*signal_norm_gain#/global_scaling_factor  # First dark mic
     
     # Save original mic signals to WAV files
-    os.remove("bright_mic_original.wav") if os.path.exists("bright_mic_original.wav") else None
-    os.remove("dark_mic_original.wav") if os.path.exists("dark_mic_original.wav") else None
-    wavfile.write("bright_mic_original.wav", fs, original_bright_mic_signal)
-    wavfile.write("dark_mic_original.wav", fs, original_dark_mic_signal)
+    os.remove("results/bright_mic_original.wav") if os.path.exists("results/bright_mic_original.wav") else None
+    os.remove("results/dark_mic_original.wav") if os.path.exists("results/dark_mic_original.wav") else None
+    wavfile.write("results/bright_mic_original.wav", fs, original_bright_mic_signal)
+    wavfile.write("results/dark_mic_original.wav", fs, original_dark_mic_signal)
 
     import matplotlib.pyplot as plt
-    os.makedirs("results", exist_ok=True)
+    
     plt.figure(figsize=(12, 6))
     plt.plot(original_bright_mic_signal, label="Bright Zone Mic 1 Signal")
     plt.plot(original_dark_mic_signal, label="Dark Zone Mic 1 Signal")
@@ -301,7 +302,7 @@ def main():
     
     # Convolve the original mic signals with the RIRs to get the filtered signals
     filtered_signals = []
-    for filter in filters["q_vast"]:
+    for filter in filters["q_acc"]:
         filtered_signal = fftconvolve(signal, filter)[:len(signal)]
         filtered_signals.append(filtered_signal)
     
@@ -317,6 +318,11 @@ def main():
     filtered_bright_mic_signal = filtered_mic_signals[room_params["n_mics"]]*signal_norm_gain# / global_scaling_factor  # First bright mic
     filtered_dark_mic_signal = filtered_mic_signals[0]*signal_norm_gain# / global_scaling_factor  # First dark mic
     
+    # # alf norm
+    # alf_norm = np.max(np.abs(signal))
+    # filtered_bright_mic_signal = filtered_bright_mic_signal / sigalf_norm
+    # filtered_dark_mic_signal = filtered_dark_mic_signal / alf_norm
+
     # Compare the filtered signals from bright and dark zone
     plt.figure(figsize=(12, 6))
     plt.plot(filtered_bright_mic_signal, label="Bright Zone Mic 1 Signal", alpha=0.9)
@@ -347,8 +353,10 @@ def main():
     plt.savefig(r"results/dark_zone_comparison.png")
     
     # Save to WAV
-    wavfile.write("bright_mic_filtered.wav", fs, filtered_bright_mic_signal)
-    wavfile.write("dark_mic_filtered.wav", fs, filtered_dark_mic_signal)
+    os.remove("results/bright_mic_filtered.wav") if os.path.exists("results/bright_mic_filtered.wav") else None
+    os.remove("results/dark_mic_filtered.wav") if os.path.exists("results/dark_mic_filtered.wav") else None
+    wavfile.write("results/bright_mic_filtered.wav", fs, filtered_bright_mic_signal)
+    wavfile.write("results/dark_mic_filtered.wav", fs, filtered_dark_mic_signal)
 
 if __name__ == "__main__":
     main()
