@@ -38,5 +38,7 @@ pkgs.mkShell {
     ipykernel
     jupyterlab
     sounddevice
+    soundfile
+    tqdm
   ]);
 }

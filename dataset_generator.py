@@ -253,20 +253,20 @@ def main():
 
     # Example usage
     dataset_params = {
-        "name": "run2",
+        "name": "run1_sparse",
         "root": Path("dataset"),
         "splits": {
             "train": {
-                "num_rooms": 150,
-                "num_phone_pos": 10,
+                "num_rooms": 10,
+                "num_phone_pos": 5,
             },
             "val": {
-                "num_rooms": 50,
-                "num_phone_pos": 10,
+                "num_rooms": 5,
+                "num_phone_pos": 5,
             },
             "test": {
-                "num_rooms": 50,
-                "num_phone_pos": 10,
+                "num_rooms": 5,
+                "num_phone_pos": 5,
             },
         },
         "room_params": {
