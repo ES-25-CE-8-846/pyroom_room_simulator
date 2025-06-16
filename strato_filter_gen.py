@@ -169,10 +169,10 @@ def main():
 
     # Define range to compute
     low = 0
-    high = 1000
+    high = 500
 
     # Load rirs
-    rirs_root = Path(f"{__file__}").parent / "dataset" / "shoebox" / "run1_sparse" / "test"
+    rirs_root = Path(f"{__file__}").parent / "dataset" / "shoebox" / "run_post_hand_in" / "test"
     rirs_paths = sorted(list(rirs_root.rglob("room_*/0000.npz")))[low:high]
     
     # log which filters have been processed
