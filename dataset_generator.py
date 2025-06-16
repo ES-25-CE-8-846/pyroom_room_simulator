@@ -71,7 +71,7 @@ class DatasetGenerator:
         ], "Regularizing must be either 'rt60' or 'maxlen'"
 
         self.dtype: type = kwargs.get("dtype", np.float32)
-        self.seed: int = kwargs.get("seed", None)
+        self.seed: int | None = kwargs.get("seed", None)
         return True
 
     def save_params(self, params: dict):
@@ -253,20 +253,20 @@ def main():
 
     # Example usage
     dataset_params = {
-        "name": "run1_sparse",
+        "name": "run_post_hand_in",
         "root": Path("dataset"),
         "splits": {
             "train": {
-                "num_rooms": 10,
-                "num_phone_pos": 5,
+                "num_rooms": 1000,
+                "num_phone_pos": 10,
             },
             "val": {
-                "num_rooms": 5,
-                "num_phone_pos": 5,
+                "num_rooms": 200,
+                "num_phone_pos": 10,
             },
             "test": {
-                "num_rooms": 5,
-                "num_phone_pos": 5,
+                "num_rooms": 100,
+                "num_phone_pos": 10,
             },
         },
         "room_params": {
@@ -285,8 +285,8 @@ def main():
             },
             # "desired_rt60": 0.5,
             "material_properties_bounds": {  #  # If desired_rt60 is None, this will be used
-                "energy_absorption": (0.6, 0.9),
-                "scattering": (0.05, 0.1),
+                "energy_absorption": (0.05, 0.4),
+                "scattering": (0.05, 0.3),
             },
             # "ray_tracing_params": {
             #     "receiver_radius": 0.1,
@@ -296,7 +296,7 @@ def main():
         },
         "regularizer": "rt60",
         "dtype": np.float32,
-        "seed": 42,
+        "seed": 69,
     }
 
     dataset_generator = DatasetGenerator(dataset_params)
