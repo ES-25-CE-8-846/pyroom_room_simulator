@@ -1,57 +1,49 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import pyroomacoustics as pra
-from scipy.signal import lfilter, butter
+from scipy.signal import fftconvolve
 from tools.phone import Phone
 from scipy.io import wavfile
 
+
 room_dim = [10, 7, 3]
+room = pra.ShoeBox(room_dim, fs=16000, max_order=3, absorption=0.4)
 
-room = pra.ShoeBox(
-    room_dim,
-    fs=16000,  # Sampling frequency
-    max_order=3,  # Maximum reflection order
-    absorption=0.1,  # Absorption coefficient
-)
-
-phone_position = [3, 4, 1.5]  # X, Y, Z in meters
-phone_orientation = [0, -90, 0]  # Euler angles (roll, pitch, yaw) in degrees
-
-# Initialize the phone
+phone_position = [3, 4, 1.5]
+phone_orientation = [0, -90, 0]
 phone = Phone(position=phone_position, orientation=phone_orientation, unit="m")
-
-# Add phone's speakers to the room
 phone_speakers = phone.get_speaker_positions()
 
+# Load the base signal
 fs, base_signal = wavfile.read(r"wav_files\president-is-moron.wav")
+if base_signal.ndim > 1:
+    base_signal = base_signal[:, 0]  # Use first channel if stereo
+
+# Load filters from combined_filters.npz
+filters = np.load(r"filters\combined_filters.npz")
+#print(np.shape(filters))
+#print(filters.files)
 
 filtered_signals = []
 for i, speaker_pos in enumerate(phone_speakers):
-    # TODO: Apply filters to the base signal
-    filtered_signals.append(base_signal) # Placeholder for filtered signals
-    room.add_source(speaker_pos, signal=filtered_signals[i], delay=0)
+    filter = filters["q_vast"][i]
+    filtered = fftconvolve(base_signal, filter)[:len(base_signal)]
+    filtered_signals.append(filtered)
+    room.add_source(speaker_pos, signal=filtered)
 
-# Define the microphone grid (heatmap resolution)
-x = np.linspace(0, room_dim[0], 100)  # 100 points along the x-axis
-y = np.linspace(0, room_dim[1], 100)  # 100 points along the y-axis
+# Microphone grid at z=1.5
+x = np.linspace(0, room_dim[0], 1000)
+y = np.linspace(0, room_dim[1], 1000)
 xx, yy = np.meshgrid(x, y)
-mic_positions = np.c_[xx.ravel(), yy.ravel(), np.full(xx.size, 1.5)].T  # shape (3, N)
-
-# Add all grid points as microphones at z=1.5
+mic_positions = np.c_[xx.ravel(), yy.ravel(), np.full(xx.size, 1.5)].T
 room.add_microphone_array(pra.MicrophoneArray(mic_positions, room.fs))
-
-# Compute all RIRs
 room.compute_rir()
 
-# Calculate pressure as sum of RIR amplitudes for each mic and all sources
 pressure = np.zeros(mic_positions.shape[1])
 for mic_idx, mic_rirs in enumerate(room.rir):
     pressure[mic_idx] = sum(np.sum(np.abs(rir)) for rir in mic_rirs)
-
-# Reshape pressure data to match the grid
 pressure = pressure.reshape(xx.shape)
 
-# Plot the heatmap
 plt.figure(figsize=(8, 6))
 plt.contourf(xx, yy, 20 * np.log10(np.abs(pressure) + 1e-6), levels=50, cmap="viridis")
 plt.colorbar(label="Sound Pressure Level (dB)")
