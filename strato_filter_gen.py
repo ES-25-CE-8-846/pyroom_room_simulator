@@ -176,7 +176,7 @@ def main():
 
     # Load rirs
     rirs_root = Path(f"{__file__}").parent / "dataset" / "shoebox" / "run_post_hand_in" / "test"
-    rirs_paths = sorted(list(rirs_root.rglob("room_*/0000.npz")))[low:high]
+    rirs_paths = sorted(list(rirs_root.rglob("room_*/*.npz")))[low:high]
     
     # log which filters have been processed
     with open(rirs_root / "processed_filters.txt", "w") as file:
