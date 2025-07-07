@@ -156,6 +156,9 @@ def VAST(BZ_rirs, DZ_rirs, fs=48_000, J=1024, mu=1.0, reg_param=1e-5, acc=True, 
         "q_acc": np.reshape(q_acc, (L, J)) if q_acc is not None else None,
         "q_vast": np.reshape(q_vast, (L, J)) if q_vast is not None else None,
         "q_pm": np.reshape(q_pm, (L, J)) if q_pm is not None else None,
+        "R_B": R_B,
+        "r_B": r_B,
+        "R_D": R_D,
         "config": {
             "fs": fs,
             "J": J,
@@ -169,11 +172,11 @@ def main():
 
     # Define range to compute
     low = 0
-    high = 1000
+    high = 500
 
     # Load rirs
-    rirs_root = Path(f"{__file__}").parent / "dataset" / "shoebox" / "run1_sparse" / "test"
-    rirs_paths = sorted(list(rirs_root.rglob("room_*/0000.npz")))[low:high]
+    rirs_root = Path(f"{__file__}").parent / "dataset" / "shoebox" / "run_post_hand_in" / "test"
+    rirs_paths = sorted(list(rirs_root.rglob("room_*/*.npz")))[low:high]
     
     # log which filters have been processed
     with open(rirs_root / "processed_filters.txt", "w") as file:
@@ -195,6 +198,7 @@ def main():
         
         # Generate VAST filters
         filter_path = rirs_path.parent / f"filters_{J}_{mu}_{reg_param}" / rirs_path.name
+        covariance_path = rirs_path.parent / f"covariance_{J}" / rirs_path.name
         if filter_path.exists():
             filters = np.load(filter_path)
             print(f"VAST filters loaded from: {filter_path}")
@@ -202,7 +206,9 @@ def main():
             print(f"Computing VAST filters and saving to: {filter_path}")
             filters = VAST(bz_rir, dz_rir, fs=fs, J=J, mu=mu, reg_param=reg_param)
             os.makedirs(filter_path.parent, exist_ok=True)
+            os.makedirs(covariance_path.parent, exist_ok=True)
             np.savez_compressed(filter_path, q_acc=filters["q_acc"], q_vast=filters["q_vast"], q_pm=filters["q_pm"])
+            np.savez_compressed(covariance_path, R_B=filters["R_B"], r_B=filters["r_B"], R_D=filters["R_D"])
 
 
 if __name__ == "__main__":
